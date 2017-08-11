@@ -81,7 +81,10 @@ rimrafPromise(join('out', '*'))
 			];
 
 			uniforms.forEach((name, index) => {
-				headerContents.push('#define uniform_' + name + ' uniforms[' + index + ']');
+				name = name
+				.replace(/^\w|\b\w/g, letter => letter.toUpperCase())
+				.replace(/_+/g, '');
+				headerContents.push('#define uniform' + name + ' uniforms[' + index + ']');
 			});
 
 			return writeFile(join('out', 'shader.h'), headerContents.join('\n'), (err) => {
