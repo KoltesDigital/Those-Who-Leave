@@ -1,6 +1,7 @@
+#include <Camera>
 uniform vec2 synth_Resolution;
 uniform float synth_Time;
-uniform vec4 synth_Mouse;
+uniform bool SynthclipseCamera; //! checkbox[false]
 
 // koltes & ponk
 // using lines of code of IQ, Mercury, LJ, Duke
@@ -21,9 +22,6 @@ uniform vec4 synth_Mouse;
 // maths
 #define PI 3.14159
 #define TAU PI*2.
-// control
-#define mouse (synth_Mouse.xy/synth_Resolution.xy)
-#define clic step(0.5,synth_Mouse.z)
 
 // animation sequences
 const float startStart = 0.1, startEnd = 1.;
@@ -41,15 +39,12 @@ const float endStart = 120., endEnd = 124.;
 const float totalHeight = 20.;
 
 // timing functions
-float timing () {
-#ifdef SYNTHCLIPSE_ONLY
-	return mix(mod(synth_Time, endEnd+6.), mix(0., endEnd+1., mouse.x), clic);
-#else
-	return mod(synth_Time, endEnd+6.);
-#endif
+float sequence (float start, float end) {
+	return clamp((synth_Time-start)/(end-start), 0., 1.);
 }
-float sequence (float start, float end) { return clamp((timing()-start)/(end-start), 0., 1.); }
-float sequenceSin (float start, float end) { return sin(sequence(start,end)*PI/2.); }
+float sequenceSin (float start, float end) {
+	return sin(sequence(start,end)*PI/2.);
+}
 float osc (float s) { return .5+.5*sin(s); }
 // transformation functions
 mat2 rot (float a) { float c=cos(a),s=sin(a);return mat2(c,-s,s,c); }
@@ -398,8 +393,18 @@ float shadeCloud (vec2 coord, vec3 eye, vec3 ray) {
 
 void main() {
 	vec2 uv = (gl_FragCoord.xy-.5*synth_Resolution.xy)/synth_Resolution.y;
-	vec3 eye = cameraPos(vec3(uv,0.));
-	vec3 ray = cameraRay(vec3(uv,1.));
+#ifdef SYNTHCLIPSE_ONLY
+	vec3 eye, ray;
+	if (SynthclipseCamera) {
+		getCamera(eye, ray);
+	} else {
+		eye = cameraPos(vec3(uv,0.));
+		ray = cameraRay(vec3(uv,1.));
+	}
+#else
+	vec3 eye = cameraPos(vec3(uv,0.)),
+		ray = cameraRay(vec3(uv,1.));
+#endif
 	float cloud = shadeCloud(gl_FragCoord.xy, eye, ray) / (STEPS_CLOUD-1.);
 	float plant = shadePlant(gl_FragCoord.xy, eye, ray) / (STEPS-1.);
 	float end = 1.-sequence(endStart, endEnd);
@@ -407,3 +412,5 @@ void main() {
 	gl_FragColor *= sequence(startStart, startEnd);
 	gl_FragColor *= 1.-sequenceSin(endEnd+5., endEnd+6.);
 }
+
+//! <preset file="shader.preset" />
