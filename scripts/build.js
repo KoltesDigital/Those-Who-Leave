@@ -8,9 +8,9 @@ const spawnPromise = require('./spawn-promise');
 
 const shaderFilename = 'shader.stoy';
 const uniforms = [
+	'synth_Height',
 	'synth_Time',
 	'synth_Width',
-	'synth_Height',
 ];
 
 console.log('Cleaning build directory.');
@@ -33,7 +33,7 @@ rimrafPromise(join('out', '*'))
 			let shader = [
 				'//! FRAGMENT',
 				'uniform float _[' + uniforms.length + '];',
-				'vec2 synth_Resolution = vec2(_[1], _[2]);',
+				'vec2 synth_Resolution = vec2(synth_Width, synth_Height);',
 			]
 			.concat(lines)
 			.join('\n')

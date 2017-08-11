@@ -50,9 +50,9 @@ void entry()
 
 		time = getTime();
 
+		uniformSynthHeight = (float)height;
 		uniformSynthTime = time;
 		uniformSynthWidth = (float)width;
-		uniformSynthHeight = (float)height;
 
 		// hack - assume that the uniforms u[] will always be linked to locations [0-n]
 		// given that they are the only uniforms in the shader, it is likely to work on all drivers
