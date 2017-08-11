@@ -38,6 +38,7 @@ rimrafPromise(join('out', '*'))
 			.concat(lines)
 			.join('\n')
 			.replace(/#ifdef\s+SYNTHCLIPSE_ONLY[\s\S]*?(?:#else([\s\S]*?))?#endif/g, '$1')
+			.replace(/#ifndef\s+SYNTHCLIPSE_ONLY([\s\S]*?)(?:#else[\s\S]*?)?#endif/g, '$1')
 			.replace(/\bconst\b/g, '');
 
 			uniforms.forEach((name, index) => {
