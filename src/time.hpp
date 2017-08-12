@@ -42,16 +42,14 @@ static char *frameFilename(int n)
 
 #else
 
-DWORD startTimestamp;
-
 static void startTime()
 {
-	startTimestamp = timeGetTime();
 }
 
 static float getTime()
 {
-	return (float)(timeGetTime() - startTimestamp) * 0.001f;
+	waveOutGetPosition(waveOut, &mmTime, sizeof(MMTIME));
+	return (float)mmTime.u.sample / (float)SAMPLE_RATE;
 }
 
 static void capture()

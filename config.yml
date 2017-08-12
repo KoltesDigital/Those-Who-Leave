@@ -2,6 +2,7 @@ constantsPreset: Dist
 distFile: flower/flower.exe
 shaderFile: shader.stoy
 uniforms:
+  - beat
   - synth_Height
   - synth_Time
   - synth_Width

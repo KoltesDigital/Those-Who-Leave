@@ -1,13 +1,15 @@
 #define WIN32_LEAN_AND_MEAN
 #define WIN32_EXTRA_LEAN
 #include <windows.h>
-#include <mmsystem.h>
+
 #include <GL/gl.h>
-#include <stdio.h>
+#include <MMSystem.h>
+#include <MMReg.h>
 
 // #define FULLSCREEN
 // #define CAPTURE_FRAMES
 
+#include "audio.hpp"
 #include "gl.hpp"
 #include "time.hpp"
 #include "window.hpp"
@@ -23,6 +25,7 @@ void entry()
 
 #ifdef FULLSCREEN
 	HWND hwnd = CreateWindow("static", NULL, WS_POPUP | WS_VISIBLE, 0, 0, width, height, NULL, NULL, NULL, 0);
+	ShowCursor(FALSE);
 #else
 	HWND hwnd = CreateWindow("static", NULL, WS_POPUP | WS_VISIBLE, 0, 0, width / 2, height / 2, NULL, NULL, NULL, 0);
 #endif
@@ -30,6 +33,11 @@ void entry()
 	HDC hdc = GetDC(hwnd);
 	SetPixelFormat(hdc, ChoosePixelFormat(hdc, &pfd), &pfd);
 	wglMakeCurrent(hdc, wglCreateContext(hdc));
+
+	CreateThread(0, 0, (LPTHREAD_START_ROUTINE)_4klang_render, soundBuffer, 0, 0);
+	waveOutOpen(&waveOut, WAVE_MAPPER, &waveFormat, NULL, 0, CALLBACK_NULL);
+	waveOutPrepareHeader(waveOut, &waveHDR, sizeof(waveHDR));
+	waveOutWrite(waveOut, &waveHDR, sizeof(waveHDR));
 
 	for (i = 0; i < GL_EXT_FUNCTION_COUNT; ++i)
 		glExtFunctions[i] = wglGetProcAddress(glExtFunctionNames[i]);
@@ -42,19 +50,16 @@ void entry()
 	glLinkProgram(program);
 	glUseProgram(program);
 
-	ShowCursor(FALSE);
-
 	startTime();
 
-	while (!GetAsyncKeyState(VK_ESCAPE))
+	do
 	{
-		float time;
-
 		// avoid 'not responding' system messages
 		PeekMessage(NULL, NULL, 0, 0, PM_REMOVE);
 
-		time = getTime();
+		float time = getTime();
 
+		uniformBeat = time * BPM / 60.f;
 		uniformSynthHeight = (float)height;
 		uniformSynthTime = time;
 		uniformSynthWidth = (float)width;
@@ -68,7 +73,7 @@ void entry()
 		capture();
 
 		wglSwapLayerBuffers(hdc, WGL_SWAP_MAIN_PLANE);
-	}
+	} while (mmTime.u.sample < MAX_PATTERNS * SAMPLES_PER_TICK * PATTERN_SIZE && !GetAsyncKeyState(VK_ESCAPE));
 
 	ExitProcess(0);
 }

@@ -2,9 +2,9 @@
 
 const { spawn } = require('child_process');
 
-module.exports = function(command, args) {
+module.exports = function(command, args, options) {
 	return new Promise((resolve, reject) => {
-		const cp = spawn(command, args);
+		const cp = spawn(command, args, options);
 
 		cp.stdout.on('data', (data) => {
 			console.log(data.toString());

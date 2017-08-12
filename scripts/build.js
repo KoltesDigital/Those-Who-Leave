@@ -3,11 +3,12 @@
 const { readFile, readFileSync, writeFile } = require('fs');
 const { safeLoad } = require('js-yaml');
 const makeDir = require('make-dir');
-const { dirname, join } = require('path');
+const { dirname, join, resolve } = require('path');
 const rimrafPromise = require('rimraf-promise');
 const spawnPromise = require('./spawn-promise');
 
 const config = safeLoad(readFileSync('config.yml'));
+const audioDirectory = 'audio';
 const buildDirectory = 'build';
 const distDirectory = 'dist';
 const shadersDirectory = 'shaders';
@@ -29,49 +30,61 @@ Promise.all([
 		return readFile(join(shadersDirectory, config.shaderFile), (err, shaderContents) => {
 			if (err)
 				return reject(err);
-
-			shaderContents = shaderContents.toString();
-
-			const constants = {};
-			const presetMatch = shaderContents.match(/\/\/!\s+<preset\s+file="(.+)"\s*\/>/);
-			if (!presetMatch)
-				return reject(new Error('Shader does not have any preset file.'));
-
-			return readFile(join(shadersDirectory, presetMatch[1]), (err, presetContents) => {
-				if (err)
-					return reject(err);
-
-				presetContents = presetContents.toString();
-
-				const presetRegExp = /\/\*\!([\s\S]*?<preset\s+name="(\w+?)"[\s\S]*?)\*\//g;
-				let presetMatch;
-				let presetFound = false;
-				while ((presetMatch = presetRegExp.exec(presetContents)) !== null) {
-					if (presetMatch[2] === config.constantsPreset) {
-						presetFound = true;
-
-						const constantRegExp = /(_\w+) = <.*?> ([\d\.]+)/g;
-						let constantMatch;
-						while ((constantMatch = constantRegExp.exec(presetMatch[1])) !== null) {
-							constants[constantMatch[1]] = constantMatch[2];
-						}
-					}
+			else
+				return resolve(shaderContents.toString());
+		});
+	})
+		.then(shaderContents => {
+			return new Promise((resolve, reject) => {
+				const constants = {};
+				const presetMatch = shaderContents.match(/\/\/!\s+<preset\s+file="(.+)"\s*\/>/);
+				if (!presetMatch) {
+					console.warn('Shader does not have any preset file.');
+					return resolve({ shaderContents, constants });
 				}
 
-				if (!presetFound)
-					return reject(new Error('Preset was not found.'));
+				return readFile(join(shadersDirectory, presetMatch[1]), (err, presetContents) => {
+					if (err)
+						return reject(err);
 
+					presetContents = presetContents.toString();
+
+					const presetRegExp = /\/\*\!([\s\S]*?<preset\s+name="(\w+?)"[\s\S]*?)\*\//g;
+					let presetMatch;
+					let presetFound = false;
+					while ((presetMatch = presetRegExp.exec(presetContents)) !== null) {
+						if (presetMatch[2] === config.constantsPreset) {
+							presetFound = true;
+
+							const constantRegExp = /(_\w+) = <.*?> ([\d\.]+)/g;
+							let constantMatch;
+							while ((constantMatch = constantRegExp.exec(presetMatch[1])) !== null) {
+								constants[constantMatch[1]] = constantMatch[2];
+							}
+						}
+					}
+
+					if (!presetFound)
+						console.warn('Preset was not found.');
+
+					return resolve({ shaderContents, constants });
+				});
+			});
+		})
+		.then(({ shaderContents, constants }) => {
+			return new Promise((resolve, reject) => {
 				const beginMatch = shaderContents.match(/^\/\/\s*?begin([\s\S]+)/m);
 				if (!beginMatch)
 					return reject(new Error('Shader does not contain the magic line "// begin".'));
 
 				const shaderLines = beginMatch[1].split('\n');
+				const constantNames = Object.keys(constants);
 
 				let shader = [
 					'//! FRAGMENT',
 					'uniform float _[' + config.uniforms.length + '];',
 					'vec2 synth_Resolution = vec2(synth_Width, synth_Height);',
-					'float ' + Object.keys(constants).map(constantName => constantName + ' = ' + constants[constantName]).join(',\n\t') + ';',
+					constantNames.length ? 'float ' + constantNames.map(constantName => constantName + ' = ' + constants[constantName]).join(',\n\t') + ';' : '// no constants',
 				]
 				.concat(shaderLines)
 				.join('\n')
@@ -92,7 +105,6 @@ Promise.all([
 				});
 			});
 		});
-	});
 })
 .then(() => {
 	console.log('Minifying shader.');
@@ -136,7 +148,7 @@ Promise.all([
 	});
 })
 .then(() => {
-	console.log('Compiling demo.');
+	console.log('Compiling intro.cpp.');
 	return spawnPromise('cl', [
 		'/O1',
 		'/Oi',
@@ -155,6 +167,18 @@ Promise.all([
 	]);
 })
 .then(() => {
+	console.log('Compiling audio.inc.');
+	return spawnPromise('nasm', [
+		'-f',
+		'win32',
+		'-o',
+		resolve(buildDirectory, '4klang.obj'),
+		'4klang.asm',
+	], {
+		cwd: audioDirectory,
+	});
+})
+.then(() => {
 	console.log('Linking demo.');
 	return spawnPromise('crinkler', [
 		'/ENTRY:entry',
@@ -164,6 +188,7 @@ Promise.all([
 		'/REPORT:' + join(buildDirectory, 'stats.html'),
 		'/OUT:' + join(distDirectory, config.distFile),
 		join(buildDirectory, 'intro.obj'),
+		join(buildDirectory, '4klang.obj'),
 		'winmm.lib',
 		'gdi32.lib',
 		'opengl32.lib',

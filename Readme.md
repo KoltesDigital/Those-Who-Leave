@@ -11,9 +11,10 @@ Framework derived from [wsmind](https://github.com/wsmind), himself took from iq
 Requirements:
 
 1. Windows only.
-2. [Visual Studio](https://www.visualstudio.com/) for the compiler.
-3. [Crinkler](http://www.crinkler.net/) for the linker, unzipped somewhere and available in the PATH.
-4. [Node.js](https://nodejs.org/) for the toolchain.
+2. [Visual Studio](https://www.visualstudio.com/) for the C++ compiler.
+3. [NASM](http://www.nasm.us) for the ASM compiler.
+4. [Crinkler](http://www.crinkler.net/) for the linker, unzipped somewhere and available in the PATH.
+5. [Node.js](https://nodejs.org/) for the toolchain.
 
 Open a *VS x86 tools prompt* and execute:
 
