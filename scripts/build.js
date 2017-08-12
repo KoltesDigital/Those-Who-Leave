@@ -114,7 +114,7 @@ Promise.all([
 			const shader = lines[lines.length - 1];
 
 			const headerContents = [
-				'static const char *shaderSource = "' + shader + '";',
+				'static const char *shaderSource = "' + shader.replace(/\r/g, '') + '";',
 				'#define UNIFORM_COUNT ' + config.uniforms.length,
 				'float uniforms[UNIFORM_COUNT];'
 			];
