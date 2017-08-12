@@ -116,7 +116,7 @@ Promise.all([
 			const headerContents = [
 				'static const char *shaderSource = "' + shader.replace(/\r/g, '') + '";',
 				'#define UNIFORM_COUNT ' + config.uniforms.length,
-				'float uniforms[UNIFORM_COUNT];'
+				'static float uniforms[UNIFORM_COUNT];'
 			];
 
 			config.uniforms.forEach((name, index) => {
