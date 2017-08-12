@@ -26,4 +26,5 @@ static PIXELFORMATDESCRIPTOR pfd = {
 	0,
 	0,
 	0,
-	0};
+	0,
+};

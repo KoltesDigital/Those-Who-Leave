@@ -5,6 +5,7 @@
 #include <GL/gl.h>
 #include <stdio.h>
 
+// #define FULLSCREEN
 // #define CAPTURE_FRAMES
 
 #include "gl.hpp"
@@ -16,12 +17,16 @@
 void entry()
 {
 	unsigned int i;
-	MSG msg;
 
 	DWORD width = GetSystemMetrics(SM_CXSCREEN);
 	DWORD height = GetSystemMetrics(SM_CYSCREEN);
 
+#ifdef FULLSCREEN
 	HWND hwnd = CreateWindow("static", NULL, WS_POPUP | WS_VISIBLE, 0, 0, width, height, NULL, NULL, NULL, 0);
+#else
+	HWND hwnd = CreateWindow("static", NULL, WS_POPUP | WS_VISIBLE, 0, 0, width / 2, height / 2, NULL, NULL, NULL, 0);
+#endif
+
 	HDC hdc = GetDC(hwnd);
 	SetPixelFormat(hdc, ChoosePixelFormat(hdc, &pfd), &pfd);
 	wglMakeCurrent(hdc, wglCreateContext(hdc));
@@ -46,7 +51,7 @@ void entry()
 		float time;
 
 		// avoid 'not responding' system messages
-		PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
+		PeekMessage(NULL, NULL, 0, 0, PM_REMOVE);
 
 		time = getTime();
 
