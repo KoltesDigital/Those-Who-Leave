@@ -7,7 +7,7 @@ const { dirname, join } = require('path');
 const rimrafPromise = require('rimraf-promise');
 const spawnPromise = require('./spawn-promise');
 
-const config = safeLoad(readFileSync('build.yml'));
+const config = safeLoad(readFileSync('config.yml'));
 const buildDirectory = 'build';
 const distDirectory = 'dist';
 const shadersDirectory = 'shaders';

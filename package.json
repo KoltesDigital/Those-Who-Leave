@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node scripts/build.js",
     "convert": "node scripts/convert.js",
-    "watch": "nodemon -w shaders -w src -e cpp,hpp,stoy scripts/build.js"
+    "watch": "nodemon -e cpp,h,hpp,js,stoy,yml -i build scripts/build.js"
   },
   "dependencies": {
     "glsl-unit": "^0.0.7",
