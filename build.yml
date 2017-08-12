@@ -1,3 +1,4 @@
+constantsPreset: Dist
 distFile: flower/flower.exe
 shaderFile: shader.stoy
 uniforms:

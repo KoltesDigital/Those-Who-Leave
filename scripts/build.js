@@ -26,38 +26,70 @@ Promise.all([
 .then(() => {
 	console.log('Preparing shader.');
 	return new Promise((resolve, reject) => {
-		return readFile(join(shadersDirectory, config.shaderFile), (err, contents) => {
+		return readFile(join(shadersDirectory, config.shaderFile), (err, shaderContents) => {
 			if (err)
 				return reject(err);
 
-			const lines = contents.toString().split('\n');
-			const index = lines.indexOf('// begin');
-			if (index < 0)
-				return reject(new Error('Shader does not contain magic line "// begin".'));
+			shaderContents = shaderContents.toString();
 
-			lines.splice(0, index + 1);
+			const constants = {};
+			const presetMatch = shaderContents.match(/\/\/!\s+<preset\s+file="(.+)"\s*\/>/);
+			if (!presetMatch)
+				return reject(new Error('Shader does not have any preset file.'));
 
-			let shader = [
-				'//! FRAGMENT',
-				'uniform float _[' + config.uniforms.length + '];',
-				'vec2 synth_Resolution = vec2(synth_Width, synth_Height);',
-			]
-			.concat(lines)
-			.join('\n')
-			.replace(/#ifdef\s+SYNTHCLIPSE_ONLY[\s\S]*?(?:#else([\s\S]*?))?#endif/g, '$1')
-			.replace(/#ifndef\s+SYNTHCLIPSE_ONLY([\s\S]*?)(?:#else[\s\S]*?)?#endif/g, '$1')
-			.replace(/\bconst\b/g, '');
-
-			config.uniforms.forEach((name, index) => {
-				const re = new RegExp('\\b' + name + '\\b', 'g');
-				shader = shader.replace(re, '_[' + index + ']');
-			});
-
-			return writeFile(join(buildDirectory, 'shader.glsl'), shader, (err) => {
+			return readFile(join(shadersDirectory, presetMatch[1]), (err, presetContents) => {
 				if (err)
 					return reject(err);
-				else
-					return resolve();
+
+				presetContents = presetContents.toString();
+
+				const presetRegExp = /\/\*\!([\s\S]*?<preset\s+name="(\w+?)"[\s\S]*?)\*\//g;
+				let presetMatch;
+				let presetFound = false;
+				while ((presetMatch = presetRegExp.exec(presetContents)) !== null) {
+					if (presetMatch[2] === config.constantsPreset) {
+						presetFound = true;
+
+						const constantRegExp = /(_\w+) = <.*?> ([\d\.]+)/g;
+						let constantMatch;
+						while ((constantMatch = constantRegExp.exec(presetMatch[1])) !== null) {
+							constants[constantMatch[1]] = constantMatch[2];
+						}
+					}
+				}
+
+				if (!presetFound)
+					return reject(new Error('Preset was not found.'));
+
+				const beginMatch = shaderContents.match(/^\/\/\s*?begin([\s\S]+)/m);
+				if (!beginMatch)
+					return reject(new Error('Shader does not contain the magic line "// begin".'));
+
+				const shaderLines = beginMatch[1].split('\n');
+
+				let shader = [
+					'//! FRAGMENT',
+					'uniform float _[' + config.uniforms.length + '];',
+					'vec2 synth_Resolution = vec2(synth_Width, synth_Height);',
+					'float ' + Object.keys(constants).map(constantName => constantName + ' = ' + constants[constantName]).join(',\n\t') + ';',
+				]
+				.concat(shaderLines)
+				.join('\n')
+				.replace(/#ifdef\s+SYNTHCLIPSE_ONLY[\s\S]*?(?:#else([\s\S]*?))?#endif/g, '$1')
+				.replace(/#ifndef\s+SYNTHCLIPSE_ONLY([\s\S]*?)(?:#else[\s\S]*?)?#endif/g, '$1')
+				.replace(/\bconst\b/g, '');
+
+				config.uniforms.forEach((name, index) => {
+					const re = new RegExp('\\b' + name + '\\b', 'g');
+					shader = shader.replace(re, '_[' + index + ']');
+				});
+
+				return writeFile(join(buildDirectory, 'shader.glsl'), shader, (err) => {
+					if (err)
+						return reject(err);
+					else
+						return resolve();
+				});
 			});
 		});
 	});
