@@ -3,6 +3,8 @@ uniform vec2 synth_Resolution;
 uniform float synth_Time;
 uniform bool SynthclipseCamera; //! checkbox[false]
 
+// begin
+
 // koltes & ponk
 // using lines of code of IQ, Mercury, LJ, Duke
 

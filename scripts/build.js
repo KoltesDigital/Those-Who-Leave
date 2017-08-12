@@ -31,7 +31,10 @@ Promise.all([
 				return reject(err);
 
 			const lines = contents.toString().split('\n');
-			const index = lines.indexOf('');
+			const index = lines.indexOf('// begin');
+			if (index < 0)
+				return reject(new Error('Shader does not contain magic line "// begin".'));
+
 			lines.splice(0, index + 1);
 
 			let shader = [
