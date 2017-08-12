@@ -11,7 +11,7 @@
 #include "time.hpp"
 #include "window.hpp"
 
-#include <out/shader.h>
+#include <build/shader.h>
 
 void entry()
 {

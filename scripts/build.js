@@ -1,28 +1,32 @@
 'use strict';
 
-const { readFile, writeFile } = require('fs');
+const { readFile, readFileSync, writeFile } = require('fs');
+const { safeLoad } = require('js-yaml');
 const makeDir = require('make-dir');
-const { join } = require('path');
+const { dirname, join } = require('path');
 const rimrafPromise = require('rimraf-promise');
 const spawnPromise = require('./spawn-promise');
 
-const shaderFilename = 'shader.stoy';
-const uniforms = [
-	'synth_Height',
-	'synth_Time',
-	'synth_Width',
-];
+const config = safeLoad(readFileSync('build.yml'));
+const buildDirectory = 'build';
+const distDirectory = 'dist';
+const shadersDirectory = 'shaders';
+const srcDirectory = 'src';
 
-console.log('Cleaning build directory.');
-rimrafPromise(join('out', '*'))
-.then(() => {
-	console.log('Creating build directory.');
-	return makeDir('out');
-})
+function dir(path) {
+	return rimrafPromise(join(path, '*'))
+		.then(() => makeDir(path));
+}
+
+console.log('Creating directories.');
+Promise.all([
+	dir(buildDirectory),
+	dir(join(distDirectory, dirname(config.distFile)))
+])
 .then(() => {
 	console.log('Preparing shader.');
 	return new Promise((resolve, reject) => {
-		return readFile(join('shaders', shaderFilename), (err, contents) => {
+		return readFile(join(shadersDirectory, config.shaderFile), (err, contents) => {
 			if (err)
 				return reject(err);
 
@@ -32,7 +36,7 @@ rimrafPromise(join('out', '*'))
 
 			let shader = [
 				'//! FRAGMENT',
-				'uniform float _[' + uniforms.length + '];',
+				'uniform float _[' + config.uniforms.length + '];',
 				'vec2 synth_Resolution = vec2(synth_Width, synth_Height);',
 			]
 			.concat(lines)
@@ -41,12 +45,12 @@ rimrafPromise(join('out', '*'))
 			.replace(/#ifndef\s+SYNTHCLIPSE_ONLY([\s\S]*?)(?:#else[\s\S]*?)?#endif/g, '$1')
 			.replace(/\bconst\b/g, '');
 
-			uniforms.forEach((name, index) => {
+			config.uniforms.forEach((name, index) => {
 				const re = new RegExp('\\b' + name + '\\b', 'g');
 				shader = shader.replace(re, '_[' + index + ']');
 			});
 
-			return writeFile(join('out', 'shader.glsl'), shader, (err) => {
+			return writeFile(join(buildDirectory, 'shader.glsl'), shader, (err) => {
 				if (err)
 					return reject(err);
 				else
@@ -59,15 +63,15 @@ rimrafPromise(join('out', '*'))
 	console.log('Minifying shader.');
 	return spawnPromise('node', [
 		join('node_modules', 'glsl-unit', 'bin', 'template_glsl_compiler.js'),
-		'--input=' + join('out', 'shader.glsl'),
+		'--input=' + join(buildDirectory, 'shader.glsl'),
 		'--variable_renaming=INTERNAL',
-		'--output=' + join('out', 'shader.min.glsl'),
+		'--output=' + join(buildDirectory, 'shader.min.glsl'),
 	]);
 })
 .then(() => {
 	console.log('Generating shader header.');
 	return new Promise((resolve, reject) => {
-		return readFile(join('out', 'shader.min.glsl'), (err, contents) => {
+		return readFile(join(buildDirectory, 'shader.min.glsl'), (err, contents) => {
 			if (err)
 				return reject(err);
 
@@ -76,18 +80,18 @@ rimrafPromise(join('out', '*'))
 
 			const headerContents = [
 				'static const char *shaderSource = "' + shader + '";',
-				'#define UNIFORM_COUNT ' + uniforms.length,
+				'#define UNIFORM_COUNT ' + config.uniforms.length,
 				'float uniforms[UNIFORM_COUNT];'
 			];
 
-			uniforms.forEach((name, index) => {
+			config.uniforms.forEach((name, index) => {
 				name = name
 				.replace(/^\w|\b\w/g, letter => letter.toUpperCase())
 				.replace(/_+/g, '');
 				headerContents.push('#define uniform' + name + ' uniforms[' + index + ']');
 			});
 
-			return writeFile(join('out', 'shader.h'), headerContents.join('\n'), (err) => {
+			return writeFile(join(buildDirectory, 'shader.h'), headerContents.join('\n'), (err) => {
 				if (err)
 					return reject(err);
 				else
@@ -109,10 +113,10 @@ rimrafPromise(join('out', '*'))
 		'/arch:IA32',
 		'/I.',
 		'/FA',
-		'/Faout\\intro.asm',
+		'/Fa' + join(buildDirectory, 'intro.asm'),
 		'/c',
-		'/Foout\\intro.obj',
-		'src\\intro.cpp',
+		'/Fo' + join(buildDirectory, 'intro.obj'),
+		join(srcDirectory, 'intro.cpp'),
 	]);
 })
 .then(() => {
@@ -122,9 +126,9 @@ rimrafPromise(join('out', '*'))
 		'/PRIORITY:NORMAL',
 		'/COMPMODE:FAST',
 		'/UNSAFEIMPORT',
-		'/REPORT:out\\stats.html',
-		'/OUT:out\\intro.exe',
-		'out\\intro.obj',
+		'/REPORT:' + join(buildDirectory, 'stats.html'),
+		'/OUT:' + join(distDirectory, config.distFile),
+		join(buildDirectory, 'intro.obj'),
 		'winmm.lib',
 		'gdi32.lib',
 		'opengl32.lib',

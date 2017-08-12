@@ -1,0 +1,6 @@
+distFile: flower/flower.exe
+shaderFile: shader.stoy
+uniforms:
+  - synth_Height
+  - synth_Time
+  - synth_Width
