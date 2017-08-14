@@ -37,11 +37,11 @@ Promise.all([
 	})
 		.then(shaderContents => {
 			return new Promise((resolve, reject) => {
-				const constants = {};
+				const constantsMap = {};
 				const presetMatch = shaderContents.match(/\/\/!\s+<preset\s+file="(.+)"\s*\/>/);
 				if (!presetMatch) {
 					console.warn('Shader does not have any preset file.');
-					return resolve({ shaderContents, constants });
+					return resolve({ shaderContents, constantsMap });
 				}
 
 				return readFile(join(shadersDirectory, presetMatch[1]), (err, presetContents) => {
@@ -57,10 +57,39 @@ Promise.all([
 						if (presetMatch[2] === config.constantsPreset) {
 							presetFound = true;
 
-							const constantRegExp = /(_\w+) = <.*?> ([\d\.]+)/g;
+							const constantRegExp = /(_\w+) = <.*?> (.*)/gm;
 							let constantMatch;
 							while ((constantMatch = constantRegExp.exec(presetMatch[1])) !== null) {
-								constants[constantMatch[1]] = constantMatch[2];
+								const components = constantMatch[2].split(', ');
+								switch (components.length) {
+								case 1:
+									constantsMap[constantMatch[1]] = {
+										type: 'float',
+										value: components[0],
+									};
+									break;
+
+								case 2:
+									constantsMap[constantMatch[1]] = {
+										type: 'vec2',
+										value: 'vec2(' + components.join(', ') + ')',
+									};
+									break;
+
+								case 3:
+									constantsMap[constantMatch[1]] = {
+										type: 'vec3',
+										value: 'vec3(' + components.join(', ') + ')',
+									};
+									break;
+
+								case 4:
+									constantsMap[constantMatch[1]] = {
+										type: 'vec4',
+										value: 'vec4(' + components.join(', ') + ')',
+									};
+									break;
+								}
 							}
 						}
 					}
@@ -68,25 +97,46 @@ Promise.all([
 					if (!presetFound)
 						console.warn('Preset was not found.');
 
-					return resolve({ shaderContents, constants });
+					return resolve({ shaderContents, constantsMap });
 				});
 			});
 		})
-		.then(({ shaderContents, constants }) => {
+		.then(({ shaderContents, constantsMap }) => {
 			return new Promise((resolve, reject) => {
 				const beginMatch = shaderContents.match(/^\/\/\s*?begin([\s\S]+)/m);
 				if (!beginMatch)
 					return reject(new Error('Shader does not contain the magic line "// begin".'));
+				let shader = beginMatch[1];
 
-				const shaderLines = beginMatch[1].split('\n');
-				const constantNames = Object.keys(constants);
+				const constantsByTypes = {};
+				Object.keys(constantsMap).forEach(constantName => {
+					const constantEntry = constantsMap[constantName];
 
-				let shader = [
+					const re = new RegExp('\\b' + constantName + '\\b', 'g');
+					let occurences = 0;
+					while (re.exec(shader) !== null) {
+						++occurences;
+					}
+
+					if (occurences > 1) {
+						if (!constantsByTypes[constantEntry.type])
+							constantsByTypes[constantEntry.type] = [];
+						constantsByTypes[constantEntry.type].push(constantName + ' = ' + constantEntry.value);
+					} else if (occurences === 1) {
+						shader = shader.replace(re, constantEntry.value);
+					}
+				});
+
+				const shaderLines = shader.split('\n');
+
+				let newShader = [
 					'//! FRAGMENT',
 					'uniform float _[' + config.uniforms.length + '];',
 					'vec2 synth_Resolution = vec2(synth_Width, synth_Height);',
-					constantNames.length ? 'float ' + constantNames.map(constantName => constantName + ' = ' + constants[constantName]).join(',\n\t') + ';' : '// no constants',
 				]
+				.concat(Object.keys(constantsByTypes).map(type => {
+					return type + ' ' + constantsByTypes[type].join(', ') + ';';
+				}))
 				.concat(shaderLines)
 				.join('\n')
 				.replace(/#ifdef\s+SYNTHCLIPSE_ONLY[\s\S]*?(?:#else([\s\S]*?))?#endif/g, '$1')
@@ -95,10 +145,10 @@ Promise.all([
 
 				config.uniforms.forEach((name, index) => {
 					const re = new RegExp('\\b' + name + '\\b', 'g');
-					shader = shader.replace(re, '_[' + index + ']');
+					newShader = newShader.replace(re, '_[' + index + ']');
 				});
 
-				return writeFile(join(buildDirectory, 'shader.glsl'), shader, (err) => {
+				return writeFile(join(buildDirectory, 'shader.glsl'), newShader, (err) => {
 					if (err)
 						return reject(err);
 					else
