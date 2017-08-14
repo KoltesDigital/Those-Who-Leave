@@ -1,8 +1,9 @@
 'use strict';
 
-const { readFile, readFileSync, writeFile } = require('fs');
+const { readFile, readFileSync, stat, writeFile } = require('fs');
 const { safeLoad } = require('js-yaml');
 const makeDir = require('make-dir');
+const { Notification } = require('node-notifier');
 const { dirname, join, resolve } = require('path');
 const rimrafPromise = require('rimraf-promise');
 const spawnPromise = require('./spawn-promise');
@@ -195,5 +196,31 @@ Promise.all([
 		'kernel32.lib',
 		'user32.lib',
 	]);
+})
+.then(() => {
+	return new Promise((resolve, reject) => {
+		return stat(join(distDirectory, config.distFile), (err, stats) => {
+			if (err)
+				return reject(err);
+			else
+				return resolve(stats.size);
+		});
+	});
+})
+.then((size) => {
+	const notifier = new Notification({
+		withFallback: true,
+	});
+
+	notifier.notify({
+		title: 'Final size',
+		message: size + ' bytes',
+		wait: true,
+	});
+
+	notifier.on('click', () => {
+		spawnPromise(join(distDirectory, config.distFile))
+		.catch(console.error);
+	});
 })
 .catch(console.error);

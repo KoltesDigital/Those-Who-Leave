@@ -13,6 +13,7 @@
     "glsl-unit": "^0.0.7",
     "js-yaml": "^3.9.1",
     "make-dir": "^1.0.0",
+    "node-notifier": "^5.1.2",
     "nodemon": "^1.11.0",
     "rimraf-promise": "^2.0.0"
   }
