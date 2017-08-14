@@ -3,6 +3,18 @@ distFile: flower/flower.exe
 shaderFile: shader.stoy
 uniforms:
   - beat
+  - endCameraAnglesX
+  - endCameraAnglesY
+  - endCameraAnglesZ
+  - endCameraPositionX
+  - endCameraPositionY
+  - endCameraPositionZ
+  - startCameraAnglesX
+  - startCameraAnglesY
+  - startCameraAnglesZ
+  - startCameraPositionX
+  - startCameraPositionY
+  - startCameraPositionZ
+  - startEndRatio
   - synth_Height
-  - synth_Time
   - synth_Width

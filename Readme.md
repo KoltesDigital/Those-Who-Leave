@@ -4,7 +4,7 @@
 
 ## Demoscene is a big family
 
-Framework derived from [wsmind](https://github.com/wsmind), himself took from iq...
+Framework derived from [wsmind](https://github.com/wsmind) and [halcy](https://github.com/halcy/), themselves took from iq...
 
 ## Build instructions
 

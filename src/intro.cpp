@@ -6,7 +6,7 @@
 #include <MMSystem.h>
 #include <MMReg.h>
 
-// #define FULLSCREEN
+#define HALF_SCREEN
 // #define CAPTURE_FRAMES
 
 #include "audio.hpp"
@@ -16,6 +16,25 @@
 
 #include <build/shader.h>
 
+struct Shot
+{
+	float endBeat;
+	float startCameraPosition[3];
+	float startCameraAngles[3];
+	float endCameraPosition[3];
+	float endCameraAngles[3];
+};
+
+static Shot shots[] = {
+	{
+		16.f,
+		{ 0.f, 0.2f, -2.f },
+		{ 0.f, 0.f, 0.f },
+		{ 0.f, 0.2f, 0.f },
+		{ 0.f, 0.f, 0.f },
+	},
+};
+
 void entry()
 {
 	unsigned int i;
@@ -23,13 +42,12 @@ void entry()
 	DWORD width = GetSystemMetrics(SM_CXSCREEN);
 	DWORD height = GetSystemMetrics(SM_CYSCREEN);
 
-#ifdef FULLSCREEN
-	HWND hwnd = CreateWindow("static", NULL, WS_POPUP | WS_VISIBLE, 0, 0, width, height, NULL, NULL, NULL, 0);
-	ShowCursor(FALSE);
-#else
-	HWND hwnd = CreateWindow("static", NULL, WS_POPUP | WS_VISIBLE, 0, 0, width / 2, height / 2, NULL, NULL, NULL, 0);
+#ifdef HALF_SCREEN
+	width /= 2;
+	height /= 2;
 #endif
 
+	HWND hwnd = CreateWindow("static", NULL, WS_POPUP | WS_VISIBLE, 0, 0, width, height, NULL, NULL, NULL, 0);
 	HDC hdc = GetDC(hwnd);
 	SetPixelFormat(hdc, ChoosePixelFormat(hdc, &pfd), &pfd);
 	wglMakeCurrent(hdc, wglCreateContext(hdc));
@@ -52,16 +70,37 @@ void entry()
 
 	startTime();
 
+	float startBeat{};
+	Shot *currentShot = shots;
+
 	do
 	{
 		// avoid 'not responding' system messages
 		PeekMessage(NULL, NULL, 0, 0, PM_REMOVE);
 
-		float time = getTime();
+		float beat = (BPM / 60.f) * getTime();
 
-		uniformBeat = time * BPM / 60.f;
+		if (beat >= currentShot->endBeat)
+		{
+			startBeat = currentShot->endBeat;
+			++ currentShot;
+		}
+
+		uniformBeat = beat;
+		uniformEndCameraAnglesX = currentShot->endCameraAngles[0];
+		uniformEndCameraAnglesY = currentShot->endCameraAngles[1];
+		uniformEndCameraAnglesZ = currentShot->endCameraAngles[2];
+		uniformEndCameraPositionX = currentShot->endCameraPosition[0];
+		uniformEndCameraPositionY = currentShot->endCameraPosition[1];
+		uniformEndCameraPositionZ = currentShot->endCameraPosition[2];
+		uniformStartCameraAnglesX = currentShot->startCameraAngles[0];
+		uniformStartCameraAnglesY = currentShot->startCameraAngles[1];
+		uniformStartCameraAnglesZ = currentShot->startCameraAngles[2];
+		uniformStartCameraPositionX = currentShot->startCameraPosition[0];
+		uniformStartCameraPositionY = currentShot->startCameraPosition[1];
+		uniformStartCameraPositionZ = currentShot->startCameraPosition[2];
+		uniformStartEndRatio = (beat - startBeat) / (currentShot->endBeat - startBeat);
 		uniformSynthHeight = (float)height;
-		uniformSynthTime = time;
 		uniformSynthWidth = (float)width;
 
 		// hack - assume that the uniforms u[] will always be linked to locations [0-n]
