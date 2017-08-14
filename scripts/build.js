@@ -57,34 +57,38 @@ Promise.all([
 						if (presetMatch[2] === config.constantsPreset) {
 							presetFound = true;
 
-							const constantRegExp = /(_\w+) = <.*?> (.*)/gm;
+							const constantRegExp = /(\w+) = <.*?> (.*)/g;
 							let constantMatch;
 							while ((constantMatch = constantRegExp.exec(presetMatch[1])) !== null) {
+								const name = constantMatch[1];
+								if (config.uniforms.indexOf(name) !== -1)
+									continue;
+
 								const components = constantMatch[2].split(', ');
 								switch (components.length) {
 								case 1:
-									constantsMap[constantMatch[1]] = {
+									constantsMap[name] = {
 										type: 'float',
 										value: components[0],
 									};
 									break;
 
 								case 2:
-									constantsMap[constantMatch[1]] = {
+									constantsMap[name] = {
 										type: 'vec2',
 										value: 'vec2(' + components.join(', ') + ')',
 									};
 									break;
 
 								case 3:
-									constantsMap[constantMatch[1]] = {
+									constantsMap[name] = {
 										type: 'vec3',
 										value: 'vec3(' + components.join(', ') + ')',
 									};
 									break;
 
 								case 4:
-									constantsMap[constantMatch[1]] = {
+									constantsMap[name] = {
 										type: 'vec4',
 										value: 'vec4(' + components.join(', ') + ')',
 									};
@@ -106,9 +110,17 @@ Promise.all([
 				const beginMatch = shaderContents.match(/^\/\/\s*?begin([\s\S]+)/m);
 				if (!beginMatch)
 					return reject(new Error('Shader does not contain the magic line "// begin".'));
-				let shader = beginMatch[1];
 
-				const constantsByTypes = {};
+				let shader = beginMatch[1]
+					.replace(/#ifdef\s+SYNTHCLIPSE_ONLY[\s\S]*?(?:#else([\s\S]*?))?#endif/g, '$1')
+					.replace(/#ifndef\s+SYNTHCLIPSE_ONLY([\s\S]*?)(?:#else[\s\S]*?)?#endif/g, '$1')
+					.replace(/\bconst\b/g, '');
+
+				const constantsByTypes = {
+					vec2: [
+						'synth_Resolution = vec2(synth_Width, synth_Height)',
+					],
+				};
 				Object.keys(constantsMap).forEach(constantName => {
 					const constantEntry = constantsMap[constantName];
 
@@ -132,16 +144,12 @@ Promise.all([
 				let newShader = [
 					'//! FRAGMENT',
 					'uniform float _[' + config.uniforms.length + '];',
-					'vec2 synth_Resolution = vec2(synth_Width, synth_Height);',
 				]
-				.concat(Object.keys(constantsByTypes).map(type => {
-					return type + ' ' + constantsByTypes[type].join(', ') + ';';
-				}))
-				.concat(shaderLines)
-				.join('\n')
-				.replace(/#ifdef\s+SYNTHCLIPSE_ONLY[\s\S]*?(?:#else([\s\S]*?))?#endif/g, '$1')
-				.replace(/#ifndef\s+SYNTHCLIPSE_ONLY([\s\S]*?)(?:#else[\s\S]*?)?#endif/g, '$1')
-				.replace(/\bconst\b/g, '');
+					.concat(Object.keys(constantsByTypes).map(type => {
+						return type + ' ' + constantsByTypes[type].join(', ') + ';';
+					}))
+					.concat(shaderLines)
+					.join('\n');
 
 				config.uniforms.forEach((name, index) => {
 					const re = new RegExp('\\b' + name + '\\b', 'g');
