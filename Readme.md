@@ -1,10 +1,18 @@
 # Flower
 
-4k for evoke 2017.
+> 4k for evoke 2017.
+
+Koltes: direction, optimization, toolchain.
+
+ponk: modeling.
+
+Unix: music.
 
 ## Demoscene is a big family
 
 Framework derived from [wsmind](https://github.com/wsmind) and [halcy](https://github.com/halcy/), themselves took from iq...
+
+Shader contains snippets from IQ, Mercury, LJ, Duke...
 
 ## Build instructions
 
