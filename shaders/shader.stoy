@@ -1,7 +1,6 @@
 #include <Camera>
 #include "shader.glsl"
 
-// maths
 const float TAU = 6.283;
 
 float currentHeight,
@@ -10,10 +9,7 @@ float currentHeight,
 
 // begin
 
-// koltes & ponk
-// using lines of code of IQ, Mercury, LJ, Duke
-
-struct _M // Material
+struct Z // Material
 {
 	float d, // distance
 		m; // min distance
@@ -21,8 +17,8 @@ struct _M // Material
 };
 
 vec3 hsv(float h, float s) {
-	vec3 k=vec3(3.,2.,1.)/3.;
-	vec3 p=abs(fract(h+k)*6.-3.);
+	vec3 k=vec3(3.,2.,1.)/3.,
+		p=abs(fract(h+k)*6.-3.);
 	return mix(k.xxx,clamp(p-k.xxx,0.,1.), s);
 }
 
@@ -104,23 +100,23 @@ float sdIso (vec3 p, float r) {
 	return dot(p, normalize(sign(p)))-r;
 }
 float sdTorus( vec3 p, vec2 s ) {
-  vec2 q = vec2(length(p.xz)-s.x,p.y);
-  return length(q)-s.y;
+	vec2 q = vec2(length(p.xz)-s.x,p.y);
+	return length(q)-s.y;
 }
 
 // volume operation sdf functions
 
-_M smin (_M a, _M b, float r) {
+Z smin (Z a, Z b, float r) {
 	float h = clamp(.5+.5*(b.d-a.d)/r,0.,1.);
-	return _M(
+	return Z(
 		mix(b.d,a.d,h)-r*h*(1.-h),
 		mix(b.m,a.m,h),
 		mix(b.c,a.c,h)
 	);
 }
-_M smax (_M a, _M b, float r) {
+Z smax (Z a, Z b, float r) {
 	float h = clamp(.5+.5*(b.d-a.d)/r,0.,1.);
-	return _M(
+	return Z(
 		mix(a.d,b.d,h)+r*h*(1.-h),
 		mix(a.m,b.m,h),
 		mix(a.c,b.c,h)
@@ -132,17 +128,17 @@ vec3 stemDisplacement (vec3 p) {
 	return vec3(cos(p.y),0.,sin(p.y)) * .5 * max(sin(TAU/2.*p.y/StemMaxHeight), 0.);
 }
 
-_M sdGround (vec3 p) {
+Z sdGround (vec3 p) {
 	float radius = 5.;
 	float rootDown = .5 * pow(length(p.xz)/radius, 2.);
 	float noisy = fbm(p*2., 0.);
 	return smax(
-		_M(sdSphere(p, radius - noisy*.2), .001, GroundBottomColor),
-		_M(p.y + rootDown * (1. + noisy), .001, mix(GroundTopColor0, GroundTopColor1, stepIndex/Steps)),
+		Z(sdSphere(p, radius - noisy*.2), .001, GroundBottomColor),
+		Z(p.y + rootDown * (1. + noisy), .001, mix(GroundTopColor0, GroundTopColor1, stepIndex/Steps)),
 		.02);
 }
 
-_M sdSeed (vec3 p) {
+Z sdSeed (vec3 p) {
 	p.x -= mix(StartSeedPositionX, EndSeedPositionX, StartEndRatio);
 	p.y -= max(mix(StartSeedPositionY, EndSeedPositionY, StartEndRatio), 0.);
 	p.z -= mix(StartSeedPositionZ, EndSeedPositionZ, StartEndRatio);
@@ -155,11 +151,11 @@ _M sdSeed (vec3 p) {
 	vec3 q = p;
 	q.xy *= rot(Beat);
 	q.yz *= rot(Beat);
-	return _M(mix(sdIso(p, radius), sdSphere(p, radius), .6), .01, hsv(noiseIQ(q + Beat / 4.) + stepIndex/Steps, 1.));
+	return Z(mix(sdIso(p, radius), sdSphere(p, radius), .6), .01, hsv(noiseIQ(q + Beat / 4.) + stepIndex/Steps, 1.));
 }
 
 
-_M sdRoots (vec3 p) {
+Z sdRoots (vec3 p) {
 	float count = 12.;
 	float subCount = 3.;
 
@@ -178,44 +174,35 @@ _M sdRoots (vec3 p) {
 	p.yz *= rot(p.y * RootSubHelixStep);
 	amod(p.yz, subCount);
 	p.y -= RootSubRadius;
-	return _M(sdCylinderCapped(p.yxz, radius, 0., len), .001, mix(RootColor0, RootColor1, stepIndex/Steps));
+	return Z(sdCylinderCapped(p.yxz, radius, 0., len), .001, mix(RootColor0, RootColor1, stepIndex/Steps));
 }
 
-_M sdMainStem (vec3 p) {
+Z sdMainStem (vec3 p) {
 	vec3 color = mix(StemColor0, StemColor1, stepIndex/Steps);
 	p += stemDisplacement(p);
 	p.xz *= rot(Beat-p.y*2.);
 	float radius = mix(-1.,StemRadius, sequence(StemStart,StemStart+0.01));
 	radius *= .4+.5*(1.-sin(TAU/4.*(1.-clamp(p.y/currentHeight,0.,1.))));
-	_M stem = _M(max(sdCylinderBox(p, radius, currentHeight), -p.y), .001, color);
+	Z stem = Z(max(sdCylinderBox(p, radius, currentHeight), -p.y), .001, color);
 	p.y -= currentHeight;
 	float fadeSeed = mix(-1.,1.,sequence(StemStart+1.,StemStart+2.));
-	_M top = _M(sdIso(p*.5,.1*fadeSeed), .001, color);
+	Z top = Z(sdIso(p*.5,.1*fadeSeed), .001, color);
 	return smin(stem, top, .1);
 }
 
 float sdLeaf (vec3 p, float radius, float ratio) {
-
 	p.y += p.x*(p.x/radius-3.)*.2;
 	p.xy *= rot(.1 * sin(Beat * TAU / 4.));
 
-	vec3 pStem = p;
+	float stem = max(sdCylinder(p.yxz, .1 * ratio * radius - .05 * p.x, 2.*radius), -p.x);
 
 	p.y -= sin(abs(2.*p.z/radius))*radius*.2;
 	p.x += ( sin(abs(p.z/radius))*.5 - ratio * 2.) * radius;
 
-	float leaf = sdCylinder(p, ratio*radius, .05 * radius);
-
-	// stem
-	// cylinder stem shape
-	float stem = sdCylinder(pStem.yxz, .1 * ratio * radius - .05 * pStem.x, 2.*radius);
-	// crop
-	stem = max(stem, -pStem.x);
-
-	return min(leaf, stem);
+	return min(sdCylinder(p, ratio*radius, .05 * radius), stem);
 }
 
-_M sdLeafs(vec3 p) {
+Z sdLeafs(vec3 p) {
 	float LeafInterval = 8. * StemGrowFactor;
 
 	vec3 pOrig = p;
@@ -241,10 +228,10 @@ _M sdLeafs(vec3 p) {
 		shape = min(shape, sdLeaf(p, radius, ratio));
 	}
 
-	return _M(max(shape, -pOrig.y), .001, mix(StemColor0, StemColor1, stepIndex/Steps));
+	return Z(max(shape, -pOrig.y), .001, mix(StemColor0, StemColor1, stepIndex/Steps));
 }
 
-_M sdFlower (vec3 p0) {
+Z sdFlower (vec3 p0) {
 	float bloom = mix(-1.,1., sin(sequence(FlowerStart, FlowerEnd)*TAU/4.));
 
 	//p0 += normalize(p0)*hash2(p0.xz)*sequence(EndStart-.9, EndEnd)*30.;
@@ -258,9 +245,9 @@ _M sdFlower (vec3 p0) {
 	p.x -= .2+.1*sin((p.y-StemMaxHeight-Beat/4.)*TAU);
 	//p.x -= .8*(sin(-p.y)*.5+.5);
 	//p.y += -camHeight+1.-height;
-	_M m = _M(sdCylinderCapped(p, .02*bloom, 0.5, height), .001, hsv(hash + Beat / 16., .6));
+	Z m = Z(sdCylinderCapped(p, .02*bloom, 0.5, height), .001, hsv(hash + Beat / 16., .6));
 	p.y -= height;
-	m = smin(m, _M(sdSphere(p, .1*bloom), .001, vec3(1)), .1);
+	m = smin(m, Z(sdSphere(p, .1*bloom), .001, vec3(1)), .1);
 
 	p = p0;
 	float count = 3.;
@@ -275,22 +262,22 @@ _M sdFlower (vec3 p0) {
 		p.xy *= rot(-TAU/6. +p.x*.2+.1*sin((Beat + i) * TAU / 4.));
 		p.x -= 1.3*bloom;
 		m = smin(m,
-			_M(sdCylinder(p, bloom, .01), .001,
+			Z(sdCylinder(p, bloom, .01), .001,
 				mix(vec3(1), hsv(hash - hash1(i) + Beat / 16., 1.), stepIndex/Steps)), 0.2);
 	}
 	return m;
 }
 
-_M sdCloud (vec3 p) {
+Z sdCloud (vec3 p) {
 	p.y -= 40.-20.*sin(TAU/8.*clamp(length(p.xz)/200.,0.,1.));
 	float shape = abs(p.y+5.*fbm(p*.2, .05))-5.*(.2+.5*sin(p.x*.07))*(.2+.5*sin(p.z*.1+Beat));
 	//shape = sdSphere(p, 1.+fbm(p, .1));
 	shape = mix(1.,shape, clamp(length(p.xz),0.,1.));
-	return _M(shape, 1., mix(CloudColor0, CloudColor1, stepIndex/Steps));
+	return Z(shape, 1., mix(CloudColor0, CloudColor1, stepIndex/Steps));
 }
 
-_M map (vec3 p) {
-	_M scene = sdCloud(p);
+Z map (vec3 p) {
+	Z scene = sdCloud(p);
 
 	scene = smin(scene, sdSeed(p), .1);
 	p.xz *= rot(Beat * .05);
@@ -307,15 +294,6 @@ _M map (vec3 p) {
 	return scene;
 }
 
-vec3 getNormal (vec3 p) {
-	vec2 e = vec2(1e-3,0);
-	return normalize(vec3(
-		map(p+e.xyy).d - map(p-e.xyy).d,
-		map(p+e.yxy).d - map(p-e.yxy).d,
-		map(p+e.yyx).d - map(p-e.yyx).d
-	));
-}
-
 void main() {
 	vec2 uv = (gl_FragCoord.xy-.5*synth_Resolution)/synth_Resolution.y;
 
@@ -325,7 +303,7 @@ void main() {
 		vec3(EndCameraPositionX, EndCameraPositionY, EndCameraPositionZ),
 		StartEndRatio
 	),
-	color = ray * 0.;
+	color = vec3(0.);
 	ray.xy *= rot(mix(StartCameraAnglesZ, EndCameraAnglesZ, StartEndRatio));
 	ray.yz *= rot(mix(StartCameraAnglesX, EndCameraAnglesX, StartEndRatio));
 	ray.xz *= rot(mix(StartCameraAnglesY, EndCameraAnglesY, StartEndRatio));
@@ -338,7 +316,7 @@ void main() {
 
 	vec2 seed = uv + fract(Beat);
 	for (stepIndex = 0.; stepIndex < Steps; ++stepIndex) {
-		_M m = map(pos);
+		Z m = map(pos);
 		if (abs(m.d) < m.m)
 			color += m.c;
 		pos += ray * max(m.m, abs(m.d)*(.8+.2*hash2(seed*stepIndex)));
