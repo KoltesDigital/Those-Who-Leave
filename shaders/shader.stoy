@@ -1,99 +1,42 @@
 #include <Camera>
+#include "shader.glsl"
 
-uniform vec2 synth_Resolution;
-uniform float synth_Time;
-uniform mat4 synth_ViewMatrix;
+// maths
+const float TAU = 6.28;
 
-uniform float BPM; //! slider[10, 100, 200]
-#define beat (synth_Time*BPM/60.)
-
-uniform bool SynthclipseCamera; //! checkbox[false]
-
-uniform float startEndRatio;
-uniform vec3 startCameraAngles; //! rotation[0, 0, 0]
-#define startCameraAnglesX startCameraAngles.x
-#define startCameraAnglesY startCameraAngles.y
-#define startCameraAnglesZ startCameraAngles.z
-uniform vec3 startCameraPosition; //! slider[(-10, -10, -10), (0, 0, 0), (10, 10, 10)]
-#define startCameraPositionX startCameraPosition.x
-#define startCameraPositionY startCameraPosition.y
-#define startCameraPositionZ startCameraPosition.z
-uniform vec3 endCameraAngles; //! rotation[0, 0, 0]
-#define endCameraAnglesX endCameraAngles.x
-#define endCameraAnglesY endCameraAngles.y
-#define endCameraAnglesZ endCameraAngles.z
-uniform vec3 endCameraPosition; //! slider[(-10, -10, -10), (0, 0, 0), (10, 10, 10)]
-#define endCameraPositionX endCameraPosition.x
-#define endCameraPositionY endCameraPosition.y
-#define endCameraPositionZ endCameraPosition.z
-
-// scene constants
-uniform float _camHeight; //! slider[5, 21, 50]
-uniform float _octaves; //! slider[0, 4, 10]
-
-// raymarch constants
-uniform float _steps; //! slider[5, 10, 50]
-uniform float _bias; //! slider[0, 0.001, 0.01]
-uniform float _minDist; //! slider[0, 0.001, 0.01]
-uniform float _cloudSteps; //! slider[5, 10, 50]
-uniform float _cloudBias; //! slider[1, 5, 10]
-uniform float _cloudMinDist; //! slider[0, .5, 1]
-
-// animation sequences
-uniform float _startStart; //! slider[0, 0.1, 300]
-uniform float _startEnd; //! slider[0, 1, 300]
-uniform float _seedStart; //! slider[0, 3, 300]
-uniform float _seedEnd; //! slider[0, 5, 300]
-uniform float _rootStart; //! slider[0, 5.1, 300]
-uniform float _rootEnd; //! slider[0, 15, 300]
-uniform float _cloudStart; //! slider[0, 17, 300]
-uniform float _cloudEnd; //! slider[0, 22, 300]
-uniform float _leafStart; //! slider[0, 10, 300]
-uniform float _leafEnd; //! slider[0, 30, 300]
-uniform float _leafStemStart; //! slider[0, 21, 300]
-uniform float _leafStemEnd; //! slider[0, 60, 300]
-uniform float _stemStart; //! slider[0, 7.2, 300]
-uniform float _stemEnd; //! slider[0, 87.2, 300]
-uniform float _flowerStart; //! slider[0, 70, 300]
-uniform float _flowerEnd; //! slider[0, 100, 300]
-uniform float _lookLeafStart; //! slider[0, 10, 300]
-uniform float _lookLeafEnd; //! slider[0, 30, 300]
-uniform float _finalStart; //! slider[0, 102, 300]
-uniform float _finalEnd; //! slider[0, 118, 300]
-uniform float _endStart; //! slider[0, 120, 300]
-uniform float _endEnd; //! slider[0, 124, 300]
-uniform float _totalHeight; //! slider[0, 20, 300]
+float hash,
+	stepIndex;
 
 // begin
 
 // koltes & ponk
 // using lines of code of IQ, Mercury, LJ, Duke
 
-// maths
-const float PI = 3.14159265359,
-	TAU = 6.28318530718;
+struct _M // Material
+{
+	float d, // distance
+		m; // min distance
+	vec3 c; // color
+};
+
+vec3 hsv(float h, float s, float v) {
+    vec3 k=vec3(3.,2.,1.)/3.;
+    vec3 p=abs(fract(h+k)*6.-3.);
+    return v*mix(k.xxx,clamp(p-k.xxx,0.,1.), s);
+}
 
 // timing functions
 float sequence (float start, float end) {
-	return clamp((beat-start)/(end-start), 0., 1.);
+	return clamp((Beat-start)/(end-start), 0., 1.);
 }
 float sequenceSin (float start, float end) {
-	return sin(sequence(start,end)*PI/2.);
+	return sin(sequence(start,end)*TAU/4.);
 }
 
 // transformation functions
 mat2 rot (float a) {
 	float c=cos(a), s=sin(a);
 	return mat2(c,-s,s,c);
-}
-
-vec3 amod (vec2 p, float count) {
-	float an = TAU/count;
-	float a = atan(p.y,p.x)+an*.5;
-	float c = floor(a/an);
-	a = mod(a,an)-an*.5;
-	c = mix(c,abs(c),step(count*.5,abs(c)));
-	return vec3(vec2(cos(a),sin(a))*length(p),c);
 }
 
 // noise functions
@@ -107,31 +50,38 @@ float hash2(vec2 co) {
 }
 
 float noiseIQ( vec3 x ) {
-  vec3 p = floor(x);
-  vec3 f = fract(x);
-  f       = f*f*(3.0-2.0*f);
-  float n = p.x + p.y*57.0 + 113.0*p.z;
-  return mix(mix(mix( hash1(n+0.0), hash1(n+1.0),f.x),
-   mix( hash1(n+57.0), hash1(n+58.0),f.x),f.y),
-  mix(mix( hash1(n+113.0), hash1(n+114.0),f.x),
-   mix( hash1(n+170.0), hash1(n+171.0),f.x),f.y),f.z);
+	vec3 p = floor(x);
+	vec3 f = fract(x);
+	f       = f*f*(3.0-2.0*f);
+	float n = p.x + p.y*57.0 + 113.0*p.z;
+	return mix(mix(mix( hash1(n+0.0), hash1(n+1.0),f.x),
+	mix( hash1(n+57.0), hash1(n+58.0),f.x),f.y),
+	mix(mix( hash1(n+113.0), hash1(n+114.0),f.x),
+	mix( hash1(n+170.0), hash1(n+171.0),f.x),f.y),f.z);
 }
 
 float fbm (vec3 p, float s) {
 	float value = 0.0;
-	float amplitud = 1.;
-	for (int i = 0; i < _octaves; ++i) {
-		value += amplitud * noiseIQ(p);
+	float amplitude = 1.;
+	for (int i = 0; i < Octaves; ++i) {
+		value += amplitude * noiseIQ(p);
 		p *= 2.;
-		p.yx *= rot(beat*s*.5);
-		p.yz *= rot(beat*s*.3);
-		p.xz *= rot(beat*s*.6);
-		amplitud *= .5;
+		p.yx *= rot(Beat*s*.5);
+		p.yz *= rot(Beat*s*.3);
+		p.xz *= rot(Beat*s*.6);
+		amplitude *= .5;
 	}
 	return value;
 }
 
+void amod(inout vec2 p, float count) {
+	float index = floor(mod(atan(p.y,p.x) / TAU * count + .5, count));
+	hash = hash1(index);
+	p *= rot(- index / count * TAU);
+}
+
 // volume distance sdf functions
+float sdCone(vec3 p, vec2 c) { return dot(c, vec2(length(p.xy), p.z)); }
 float sdSphere (vec3 p, float r) { return length(p)-r; }
 float sdCylinder (vec3 p, float r, float h) { return max(abs(p.y)-h,length(p.xz)-r); }
 float sdCylinderBox (vec3 p, float r, float h) {
@@ -154,268 +104,268 @@ float smax (float a, float b, float r) {
 	float h = clamp(.5+.5*(b-a)/r,0.,1.);
 	return mix(a,b,h)+r*h*(1.-h);
 }
+_M smin (_M a, _M b, float r) {
+	float h = clamp(.5+.5*(b.d-a.d)/r,0.,1.);
+	return _M(
+		mix(b.d,a.d,h)-r*h*(1.-h),
+		mix(b.m,a.m,h),
+		mix(b.c,a.c,h)
+	);
+}
+_M smax (_M a, _M b, float r) {
+	float h = clamp(.5+.5*(b.d-a.d)/r,0.,1.);
+	return _M(
+		mix(a.d,b.d,h)+r*h*(1.-h),
+		mix(a.m,b.m,h),
+		mix(a.c,b.c,h)
+	);
+}
 // displacement animation
+
 float currentHeight () {
-	return _totalHeight * sequenceSin(_stemStart, _stemEnd);
-}
-vec3 stemDisplacement (vec3 p) { return vec3(cos(p.y),0.,sin(p.y))*.5; }
-float fadeHeight (vec3 p) { return sin(PI*clamp(p.y/_totalHeight,0.,1.)); }
-float fadeCurrentHeight (vec3 p) { return sin(PI/2.*(1.-clamp(p.y/currentHeight(),0.,1.))); }
-
-float sdGround (vec3 p) {
-	float radius = .5;
-	float d = clamp(length(p)/radius,0.,1.);
-	d = sqrt(1.-d);
-	float noisy = fbm(p*8.,0.);
-	float cy = .1;
-	p.y += .1;
-	p.y -= .1*d*noisy;
-	return max(sdSphere(p,radius-noisy*.01), p.y);
+	return min(StemMaxHeight, StemGrowFactor * (Beat - StemStart));
 }
 
-float sdSeed (vec3 p) {
-	p.y += mix(-4., 0., sequenceSin(_seedStart, _seedEnd+.1));
-	p.y += mix(0., 0.01, sequence(_seedEnd+.1, _seedEnd+.3));
-	p.z += sin(p.x*110.+sin(p.z*90.))*sin(p.y*50.)*.02;
-	p.xy *= rot(PI/4.);
-	p.xz *= rot(PI/4.);
+vec3 stemDisplacement (vec3 p) {
+	return vec3(cos(p.y),0.,sin(p.y))*.5;
+}
+
+float fadeHeight (vec3 p) {
+	return sin(TAU/2.*clamp(p.y/StemMaxHeight,0.,1.));
+}
+
+float fadeCurrentHeight (vec3 p) {
+	return sin(TAU/4.*(1.-clamp(p.y/currentHeight(),0.,1.)));
+}
+
+_M sdGround (vec3 p) {
+	float radius = 5.;
+	float rootDown = .5 * pow(length(p.xz)/radius, 2.);
+	float noisy = fbm(p*2., 0.);
+	return smax(
+		_M(sdSphere(p, radius - noisy*.2), .001, GroundBottomColor),
+		_M(p.y + rootDown * (1. + noisy), .001, mix(GroundTopColor0, GroundTopColor1, stepIndex/Steps)),
+		.02);
+}
+
+_M sdSeed (vec3 p) {
+	//p.y += mix(-4., 0., sequenceSin(SeedStart, SeedEnd+.1));
+	//p.y += mix(0., 0.01, sequence(SeedEnd+.1, SeedEnd+.3));
+	p.z += sin(p.x*25.+sin(p.z*20.))*sin(p.y*10.)*.02;
+	p.xy *= rot(TAU/8.);
+	p.xz *= rot(TAU/8.);
 	p.xy /= .6;
-	float radius = .2;
-	return mix(sdIso(p, radius), sdSphere(p, radius), .6);
+	float radius = .5;
+	vec3 q = p;
+	q.xy *= rot(Beat);
+	q.yz *= rot(Beat);
+	return _M(mix(sdIso(p, radius), sdSphere(p, radius), .6), .01, hsv(noiseIQ(q + Beat / 4.), 1., 1.));
 }
 
-float sdRoots (vec3 p) {
+
+_M sdRoots (vec3 p) {
 	float count = 12.;
 	float subCount = 3.;
 
-	float an = TAU/count;
-	float a = atan(p.z,p.x)+an*.5;
-	float offset = floor(a/an);
-	offset = mix(offset,abs(offset),step(count*.5,abs(offset)));
-	offset = hash2(vec2(offset/count,0));
+	amod(p.xz, count);
 	float range = 3.;
 	float d = length(p.xz);
-	float height = 6. * sequence(_rootStart+range*offset, _rootEnd+range*offset);
-	float fade = sin(PI*(1.-clamp(d/height,0.,1.)));
-	float radius = (.02+0.005*sin((d+beat*.5)*15.+offset))*fade;
-	p.xz *= rot(sin(d*5.+offset)*.1);
-	p.y += sin(d*10.+offset)*.1*(.5+.5*(1.-fade));
-	vec3 m1 = amod(p.xz, count);
-	p.xz = m1.xy;
-	//p.yx *= rot(-PI/(8.-offset*2.));
-	p.x -= height;
-	p.yx *= rot(PI/2.);
-	p.xz *= rot(p.y*10.);
-	m1 = amod(p.xz, subCount);
-	p.xz = m1.xy-vec2(.03,0);
-	return sdCylinder(p, radius, height);
+	float len = 6. * sequence(RootStart+range*hash, RootEnd+range*hash);
+	float fade = 1. - min(1., exp(RootFadeDamping * (d - len)));
+	float rootDown = .8 * pow(d/5., 2.);
+	float radius = (.1 + 0.02*sin(TAU * (Beat*.5 + d*.5 + hash))) * fade;
+	p.xz *= rot(sin((3.+4.*hash)*(d+hash))*.1);
+	p.y += RootAmplitude * cos(d * RootPulsation + hash) * min(1., exp(RootDamping * -d))
+			+ rootDown + smoothstep(4.5, 8., d) * RootFall;
+
+	p.x -= len;
+	p.yz *= rot(p.y * RootSubHelixStep);
+	amod(p.yz, subCount);
+	p.y -= RootSubRadius;
+	return _M(max(length(p.yz) - radius, max(d-len, -d))*.8, .001, mix(RootColor0, RootColor1, stepIndex/Steps));
 }
 
-float sdMainStem (vec3 p) {
+_M sdMainStem (vec3 p) {
 	float height = currentHeight();
 	float fade = fadeHeight(p);
 	p += stemDisplacement(p)*fade;
-	p.xz *= rot(p.y*6.+beat);
-	float radius = mix(-1.,.05, sequence(_stemStart,_stemStart+0.01));
+	p.xz *= rot(Beat-p.y*2.);
+	float radius = mix(-1.,StemRadius, sequence(StemStart,StemStart+0.01));
 	radius *= .4+.5*(1.-fadeCurrentHeight(p));
 	float shape = max(sdCylinderBox(p, radius, height), -p.y);
 	p.y -= height;
-	float fadeSeed = mix(-1.,1.,sequence(_stemStart+1.,_stemStart+2.));
-	shape = smin(shape, sdIso(p,.1*fadeSeed), .1);
-	return shape;
+	float fadeSeed = mix(-1.,1.,sequence(StemStart+1.,StemStart+2.));
+	shape = smin(shape, sdIso(p*.5,.1*fadeSeed), .1);
+	return _M(shape, .001, mix(StemColor0, StemColor1, stepIndex/Steps));
 }
 
-float sdLeaf (vec3 p) {
-	float cy = .8;
-	float iy = floor(p.y/cy);
-	float ratioStem = sequenceSin(_leafStemStart, _leafStemEnd);
-	float radius = .25+.5*ratioStem+2.*sequence(_flowerStart, _flowerEnd);
-	float fade = fadeHeight(p);
-	float height = currentHeight();
-	float stemSize = 1.5 * ratioStem;
-	float ground = p.y;
-	p += stemDisplacement(p)*fade;
-	float wizen = 1.-smoothstep(height-2.,height-1.,p.y);
+float sdLeaf (vec3 p, float radius, float ratio) {
 
-	float dust = 1.-smoothstep(height-5.,height-2.,p.y);
-	float final = sequence(_finalStart, _finalEnd);
-	float end = sequence(_endStart, _endEnd);
-	p.xz *= rot(iy*.5+beat*.3);
-	// first polar repeat
-	vec3 m1 = amod(p.xz,1.+floor(8.*clamp(iy-10.,0.,16.)/16.));
-	p.xz = m1.xy;
+	p.y += p.x*(p.x/radius-3.)*.2;
+	p.xy *= rot(.1 * sin(Beat * TAU / 4.));
+
 	vec3 pStem = p;
-	float ratioLeaf = sequence(_leafStart,_leafEnd);
-	float ratioGrow = 1.-smoothstep(height-1.,height,p.y);
-	ratioLeaf *= ratioGrow;
-	ratioStem *= ratioGrow;
-	stemSize *= ratioGrow;
-	p.x += -radius*ratioGrow - stemSize;
-	// second polar repeat
-	//m1 = amod(p.xz, 1.+floor(2.*clamp(iy-15.,0.,5.)/5.));
-	//p.xz = mix(p.xz, m1.xy-vec2(.5*ratioGrow,0), step(15.,iy));
-	//p.y += sin(abs(p.x)+2.*radius);
-	p.x += sin(abs(p.z))*.5;
-	p.y += -sin(abs(p.z)*PI/2.)*.2;
-	p.y += (-cos(p.x)*.2+.25);
-	p += -normalize(p - vec3(0.,height,0.))*hash2(p.xz)*dust;
-	float noise2 = fbm(p.xzz*4., .6);
-	float noisy = (noise2*2.-1.)*.5*wizen;
-	noisy += noise2*final * noise2*end;
-	// repeat y
-	p.y = mod(p.y, cy)-cy/2.;
-	p.y += noisy;
-	pStem += noisy;
-	// cylinder leaf shape
-	float shape = sdCylinder(p,radius*ratioLeaf,.01);
+
+	p.y -= sin(abs(2.*p.z/radius))*radius*.2;
+	p.x += ( sin(abs(p.z/radius))*.5 - ratio * 2.) * radius;
+
+	//float noise2 = fbm(p.xzz*4., .6);
+	//float noisy = (noise2*2.-1.)*.5;
+	//noisy += noise2*final * noise2*end;
+	//p.y += noisy;
+
+	float leaf = sdCylinder(p, ratio*radius, .05 * radius);
 
 	// stem
-	float fadeStem = clamp(1.-sin(PI/2.*length(pStem.xz)/stemSize), 0., 1.);
-	pStem.y += .08+fadeStem*.2;
-	pStem.y = mod(pStem.y, cy)-cy/2.;
-	pStem.xy *= rot(PI/2.);
 	// cylinder stem shape
-	float stem = sdCylinder(pStem, 0.01+.04*fadeStem,1.1*stemSize);
+	float stem = sdCylinder(pStem.yxz, .1 * ratio * radius - .05 * pStem.x, 2.*radius);
 	// crop
-	stem = max(stem, -pStem.y);
-	// blend shapes
-	shape = smin(shape, stem, .01);
-	// crop
-	shape = max(max(shape, -(ground-5.)), (ground-height));
-	return shape;
+	stem = max(stem, -pStem.x);
+
+	return smin(leaf, stem, .01);
 }
 
-float sdFlower (vec3 p0) {
-	float currheight = currentHeight();
-	p0 += normalize(p0)*hash2(p0.xz)*sequence(_endStart-.9, _endEnd)*30.;
+_M sdLeafs(vec3 p) {
+	float LeafInterval = 8. * StemGrowFactor;
+
+	vec3 pOrig = p;
+
+	float radius = 1.5,
+		ratio = 1. - min(1., exp(-.2 * (Beat - StemStart - 8. * 9.)));
+
+	float fade = fadeHeight(p);
+	p += stemDisplacement(p)*fade;
+
+	p.y -= 9. * LeafInterval;
+	amod(p.xz, 4.);
+	float shape = sdLeaf(p, radius, ratio);
+
+	for (float index = 1.; index < 9.; ++index) {
+		float fade = fadeHeight(pOrig);
+		p = pOrig + stemDisplacement(pOrig)*fade;
+
+		p.y -= index * LeafInterval;
+
+		radius = .5 + .05 * index;
+		ratio = 1. - min(1., exp(-.2 * (Beat - StemStart - 8. * index)));
+
+		p.xz *= rot(3. - index * LeafInterval);
+		shape = min(shape, sdLeaf(p, radius, ratio));
+	}
+
+	return _M(max(shape, -pOrig.y), .001, mix(StemColor0, StemColor1, stepIndex/Steps));
+}
+
+_M sdFlower (vec3 p0) {
+	//p0 += normalize(p0)*hash2(p0.xz)*sequence(EndStart-.9, EndEnd)*30.;
 	float noise2 = fbm(p0*2., .0);
-	p0.y += 3. * noise2 * sequence(_finalEnd,_endEnd-1.)*(length(p0.xz)+1.);
+	//p0.y += 3. * noise2 * sequence(FinalEnd, EndEnd-1.)*(length(p0.xz)+1.);
+	p0.y -= currentHeight();
 	vec3 p = p0;
 	float count = 3.;
 	float repeat = 5.;
-	float bloom = mix(-1.,1., sequenceSin(_flowerStart,_flowerEnd));
+	float bloom = mix(-1.,1., sequenceSin(FlowerStart, FlowerEnd));
 	float radius = 1.*bloom;
-	float thin = .01;
-	float shape = 1.;
+	_M m;
+	m.d = 1e5;
 	for (float i = 0.; i < count; ++i) {
 		p = p0;
-		p.y += -_camHeight+1.;
+		//p.y += -camHeight+1.;
 		p.y -= i*.15;
-		p.xz *= rot(i/count*PI/2.);
-		vec3 m1 = amod(p.xz, repeat);
-		p.xz = m1.xy;
+		p.xz *= rot((Beat / 16. + i/count) * TAU);
+		amod(p.xz, repeat);
 		p.z *= 2.;
-		p.xy *= rot(-PI/3.+p.x*.2);
+		p.xy *= rot(-TAU/6. +p.x*.2+.1*sin((Beat + i) * TAU / 4.));
 		p.x -= 1.3*bloom;
-		shape = min(shape, sdCylinder(p, radius, thin*(1.-length(p.xz))));
+		m = smin(m,
+			_M(sdCylinder(p, radius, .01), .001,
+				mix(vec3(1), hsv(hash - hash1(i) + Beat / 16., 1., 1.), stepIndex/Steps)), 0.2);
 	}
 	p = p0;
-	p.xz *= rot(sin(p.y*5.+beat)*.5);
-	vec3 m1 = amod(p.xz, 8.);
-	float height = 1.*bloom;
-	p.xz = m1.xy;
-	p.x -= .2+.1*sin((p.y-currheight-beat*.3)*TAU);
+	p.xz *= rot(sin(p.y*5.+Beat)*.5);
+	amod(p.xz, 8.);
+	float height = 2.*bloom;
+	p.x -= .2+.1*sin((p.y-StemMaxHeight-Beat/4.)*TAU);
 	//p.x -= .8*(sin(-p.y)*.5+.5);
-	p.y += -_camHeight+1.-height;
-	shape = smin(shape, sdCylinder(p, .02,height), .1);
-	shape = smin(shape, sdSphere(p-vec3(0,height,0), .1*bloom), .1);
-	return shape;
+	//p.y += -camHeight+1.-height;
+	m = smin(m, _M(max(sdCylinder(p, .02, height), -p0.y), .001, hsv(hash + Beat / 16., .6, 1.)), .1);
+	m = smin(m, _M(sdSphere(p-vec3(0,height,0), .1*bloom), .001, vec3(1)), .1);
+	return m;
 }
 
-float sdCloud (vec3 p) {
-	float shape = 1.;
-	p.y -= 40.-20.*sin(PI/4.*clamp(length(p.xz)/200.,0.,1.));
-	shape = abs(p.y+5.*fbm(p*.2, .05))-5.*sin(p.x*.07)*sin(p.z*.1+beat);
+_M sdCloud (vec3 p) {
+	p.y -= 40.-20.*sin(TAU/8.*clamp(length(p.xz)/200.,0.,1.));
+	float shape = abs(p.y+5.*fbm(p*.2, .05))-5.*(.2+.5*sin(p.x*.07))*(.2+.5*sin(p.z*.1+Beat));
 	//shape = sdSphere(p, 1.+fbm(p, .1));
 	shape = mix(1.,shape, clamp(length(p.xz),0.,1.));
-	return shape;
+	return _M(shape, 1., mix(CloudColor0, CloudColor1, stepIndex/Steps));
 }
 
-float map (vec3 p) {
-	float scene = 1.;
-	scene = smin(scene, sdGround(p), .1);
-	/*
+_M map (vec3 p) {
+	_M scene = sdGround(p);
 	scene = smin(scene, sdSeed(p), .1);
 	scene = smin(scene, sdRoots(p), .1);
 	scene = smin(scene, sdMainStem(p), .1);
-	scene = smin(scene, sdLeaf(p), .1);
+	scene = smin(scene, sdLeafs(p), .1);
 	scene = smin(scene, sdFlower(p), .1);
-	*/
-	float final = sequence(_finalStart, _finalEnd);
-	float finalShort = sequence(_finalStart, _finalStart+.1);
-	p.y -= currentHeight()+2.*final;
-	p.y -= .1*sequenceSin(_endEnd-.1, _endEnd+.2);
-	p.y += 4.*sequenceSin(_endEnd+.1, _endEnd+5.);
-	p.xz *= rot(beat);
-	p.yz *= rot(beat*.6);
-	p.xy *= rot(beat*.3);
-	scene = smin(scene, mix(1., sdSeed(p), finalShort), .5);
+	scene = smin(scene, sdCloud(p), .1);
 	return scene;
 }
 
 vec3 getNormal (vec3 p) {
-	vec2 e = vec2(0.001,0);
-	return normalize(vec3(map(p+e.xyy)-map(p-e.xyy),
-						  map(p+e.yxy)-map(p-e.yxy),
-						  map(p+e.yyx)-map(p-e.yyx)));
-}
-
-float shadePlant (vec2 dpos, vec3 pos, vec3 ray) {
-	float shade;
-	vec2 seed = dpos + fract(beat);
-	for (float i = 0.; i < _steps; ++i) {
-		float dist = map(pos);
-		if (dist < _bias) shade += 1.;
-		dist=abs(dist)*(.8+.2*hash2(seed*vec2(i)));
-		dist = max(_minDist,dist);
-		pos += ray*dist;
-	}
-	return shade;
-}
-
-float shadeCloud (vec2 dpos, vec3 pos, vec3 ray) {
-	float shade;
-	vec2 seed = dpos + fract(beat);
-	for (float i = 0.; i < _cloudSteps; ++i) {
-		float dist = sdCloud(pos);
-		if (dist < _cloudBias) shade += 1.;
-		dist=abs(dist)*(.8+.2*hash2(seed*vec2(i)));
-		dist = max(_cloudMinDist,dist);
-		pos += ray*dist;
-	}
-	return shade;
+	vec2 e = vec2(1e-3,0);
+	return normalize(vec3(
+		map(p+e.xyy).d - map(p-e.xyy).d,
+		map(p+e.yxy).d - map(p-e.yxy).d,
+		map(p+e.yyx).d - map(p-e.yyx).d
+	));
 }
 
 void main() {
 	vec2 uv = (gl_FragCoord.xy-.5*synth_Resolution.xy)/synth_Resolution.y;
 
 	vec3 angles = mix(
-		vec3(startCameraAnglesX, startCameraAnglesY, startCameraAnglesZ),
-		vec3(endCameraAnglesX, endCameraAnglesY, endCameraAnglesZ),
-		startEndRatio
+		vec3(StartCameraAnglesX, StartCameraAnglesY, StartCameraAnglesZ),
+		vec3(EndCameraAnglesX, EndCameraAnglesY, EndCameraAnglesZ),
+		StartEndRatio
 	),
-	ray = vec3(uv,1),
-	eye = mix(
-		vec3(startCameraPositionX, startCameraPositionY, startCameraPositionZ),
-		vec3(endCameraPositionX, endCameraPositionY, endCameraPositionZ),
-		startEndRatio
-	);
+	ray = normalize(vec3(uv,1)),
+	pos = mix(
+		vec3(StartCameraPositionX, StartCameraPositionY, StartCameraPositionZ),
+		vec3(EndCameraPositionX, EndCameraPositionY, EndCameraPositionZ),
+		StartEndRatio
+	),
+	color = ray * 0.;
 	ray.xy *= rot(angles.z);
 	ray.yz *= rot(angles.x);
 	ray.xz *= rot(angles.y);
 
 #ifdef SYNTHCLIPSE_ONLY
 	if (SynthclipseCamera) {
-		getCamera(eye, ray);
+		getCamera(pos, ray);
 	}
 #endif
 
-	float cloud = shadeCloud(uv, eye, ray) / (_cloudSteps-1.);
-	float plant = shadePlant(uv, eye, ray) / (_steps-1.);
-	float end = 1.-sequence(_endStart, _endEnd);
-	gl_FragColor = vec4(mix(cloud*sequence(_cloudStart,_cloudEnd)*end,plant,step(_bias,plant)));
-	gl_FragColor *= sequence(_startStart, _startEnd);
-	gl_FragColor *= 1.-sequenceSin(_endEnd+5., _endEnd+6.);
+	vec2 seed = uv + fract(Beat);
+	for (stepIndex = 0.; stepIndex < Steps; ++stepIndex) {
+		_M m = map(pos);
+		if (abs(m.d) < m.m)
+			color += m.c;
+		pos += ray * max(m.m, abs(m.d)*(.8+.2*hash2(seed*stepIndex)));
+	}
+	color /= Steps;
+
+	ray.xy *= rot(Beat*.02);
+	ray.xz *= rot(.5);
+	gl_FragColor = vec4(mix(
+			mix(
+				mix(SkyColor0, SkyColor1, noiseIQ(ray*5.)*noiseIQ(ray*.2))
+			, StarColor, smoothstep(.94, 1., noiseIQ(ray*1e2))),
+			color, step(1e-5, color))
+		 * Exposure
+		 * sequence(FadeInStart, FadeInEnd)
+	 	 * sequence(FadeOutEnd, FadeOutStart)
+	, 1.);
 }
 
 //! <preset file="shader.preset" />

@@ -1,9 +1,9 @@
 uniform float synth_Time;
 uniform float BPM; //! slider[10, 100, 200]
-#define beat (synth_Time*BPM/60.)
+#define Beat (synth_Time*BPM/60.)
 
 // begin
 
 void main() {
-	gl_FragColor = vec4(fract(beat));
+	gl_FragColor = vec4(fract(Beat));
 }

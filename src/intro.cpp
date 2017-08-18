@@ -27,11 +27,11 @@ struct Shot
 
 static Shot shots[] = {
 	{
-		16.f,
-		{ 0.f, 0.2f, -2.f },
-		{ 0.f, 0.f, 0.f },
-		{ 0.f, 0.2f, 0.f },
-		{ 0.f, 0.f, 0.f },
+		208.f,
+		{ 0.f, 5.f, -5.f },
+		{ 0.5f, 0.f, 0.f },
+		{ 0.f, 5.f, -5.f },
+		{ 0.5f, 0.f, 0.f },
 	},
 };
 
@@ -112,7 +112,9 @@ void entry()
 		capture();
 
 		wglSwapLayerBuffers(hdc, WGL_SWAP_MAIN_PLANE);
-	} while (mmTime.u.sample < MAX_PATTERNS * SAMPLES_PER_TICK * PATTERN_SIZE && !GetAsyncKeyState(VK_ESCAPE));
+	} while (
+		// mmTime.u.sample < MAX_PATTERNS * SAMPLES_PER_TICK * PATTERN_SIZE &&
+		!GetAsyncKeyState(VK_ESCAPE));
 
 	ExitProcess(0);
 }

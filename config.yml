@@ -1,20 +1,27 @@
-constantsPreset: Dist
+constantsPreset: Default
 distFile: flower/flower.exe
+globals:
+  float:
+  - hash
+  - stepIndex
+  - TAU = 6.28
+  vec2:
+  - synth_Resolution = vec2(synth_Width, synth_Height)
 shaderFile: shader.stoy
 uniforms:
-  - beat
-  - endCameraAnglesX
-  - endCameraAnglesY
-  - endCameraAnglesZ
-  - endCameraPositionX
-  - endCameraPositionY
-  - endCameraPositionZ
-  - startCameraAnglesX
-  - startCameraAnglesY
-  - startCameraAnglesZ
-  - startCameraPositionX
-  - startCameraPositionY
-  - startCameraPositionZ
-  - startEndRatio
+  - Beat
+  - EndCameraAnglesX
+  - EndCameraAnglesY
+  - EndCameraAnglesZ
+  - EndCameraPositionX
+  - EndCameraPositionY
+  - EndCameraPositionZ
+  - StartCameraAnglesX
+  - StartCameraAnglesY
+  - StartCameraAnglesZ
+  - StartCameraPositionX
+  - StartCameraPositionY
+  - StartCameraPositionZ
+  - StartEndRatio
   - synth_Height
   - synth_Width
