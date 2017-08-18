@@ -2,9 +2,10 @@
 #include "shader.glsl"
 
 // maths
-const float TAU = 6.28;
+const float TAU = 6.283;
 
-float hash,
+float currentHeight,
+	hash,
 	stepIndex;
 
 // begin
@@ -19,18 +20,15 @@ struct _M // Material
 	vec3 c; // color
 };
 
-vec3 hsv(float h, float s, float v) {
-    vec3 k=vec3(3.,2.,1.)/3.;
-    vec3 p=abs(fract(h+k)*6.-3.);
-    return v*mix(k.xxx,clamp(p-k.xxx,0.,1.), s);
+vec3 hsv(float h, float s) {
+	vec3 k=vec3(3.,2.,1.)/3.;
+	vec3 p=abs(fract(h+k)*6.-3.);
+	return mix(k.xxx,clamp(p-k.xxx,0.,1.), s);
 }
 
 // timing functions
 float sequence (float start, float end) {
 	return clamp((Beat-start)/(end-start), 0., 1.);
-}
-float sequenceSin (float start, float end) {
-	return sin(sequence(start,end)*TAU/4.);
 }
 
 // transformation functions
@@ -111,14 +109,7 @@ float sdTorus( vec3 p, vec2 s ) {
 }
 
 // volume operation sdf functions
-float smin (float a, float b, float r) {
-	float h = clamp(.5+.5*(b-a)/r,0.,1.);
-	return mix(b,a,h)-r*h*(1.-h);
-}
-float smax (float a, float b, float r) {
-	float h = clamp(.5+.5*(b-a)/r,0.,1.);
-	return mix(a,b,h)+r*h*(1.-h);
-}
+
 _M smin (_M a, _M b, float r) {
 	float h = clamp(.5+.5*(b.d-a.d)/r,0.,1.);
 	return _M(
@@ -137,16 +128,8 @@ _M smax (_M a, _M b, float r) {
 }
 // displacement animation
 
-float currentHeight () {
-	return min(StemMaxHeight, StemGrowFactor * (Beat - StemStart));
-}
-
 vec3 stemDisplacement (vec3 p) {
 	return vec3(cos(p.y),0.,sin(p.y)) * .5 * max(sin(TAU/2.*p.y/StemMaxHeight), 0.);
-}
-
-float fadeCurrentHeight (vec3 p) {
-	return sin(TAU/4.*(1.-clamp(p.y/currentHeight(),0.,1.)));
 }
 
 _M sdGround (vec3 p) {
@@ -172,7 +155,7 @@ _M sdSeed (vec3 p) {
 	vec3 q = p;
 	q.xy *= rot(Beat);
 	q.yz *= rot(Beat);
-	return _M(mix(sdIso(p, radius), sdSphere(p, radius), .6), .01, hsv(noiseIQ(q + Beat / 4.) + stepIndex/Steps, 1., 1.));
+	return _M(mix(sdIso(p, radius), sdSphere(p, radius), .6), .01, hsv(noiseIQ(q + Beat / 4.) + stepIndex/Steps, 1.));
 }
 
 
@@ -199,16 +182,16 @@ _M sdRoots (vec3 p) {
 }
 
 _M sdMainStem (vec3 p) {
-	float height = currentHeight();
+	vec3 color = mix(StemColor0, StemColor1, stepIndex/Steps);
 	p += stemDisplacement(p);
 	p.xz *= rot(Beat-p.y*2.);
 	float radius = mix(-1.,StemRadius, sequence(StemStart,StemStart+0.01));
-	radius *= .4+.5*(1.-fadeCurrentHeight(p));
-	float shape = max(sdCylinderBox(p, radius, height), -p.y);
-	p.y -= height;
+	radius *= .4+.5*(1.-sin(TAU/4.*(1.-clamp(p.y/currentHeight,0.,1.))));
+	_M stem = _M(max(sdCylinderBox(p, radius, currentHeight), -p.y), .001, color);
+	p.y -= currentHeight;
 	float fadeSeed = mix(-1.,1.,sequence(StemStart+1.,StemStart+2.));
-	shape = smin(shape, sdIso(p*.5,.1*fadeSeed), .1);
-	return _M(shape, .001, mix(StemColor0, StemColor1, stepIndex/Steps));
+	_M top = _M(sdIso(p*.5,.1*fadeSeed), .001, color);
+	return smin(stem, top, .1);
 }
 
 float sdLeaf (vec3 p, float radius, float ratio) {
@@ -229,7 +212,7 @@ float sdLeaf (vec3 p, float radius, float ratio) {
 	// crop
 	stem = max(stem, -pStem.x);
 
-	return smin(leaf, stem, .01);
+	return min(leaf, stem);
 }
 
 _M sdLeafs(vec3 p) {
@@ -262,12 +245,12 @@ _M sdLeafs(vec3 p) {
 }
 
 _M sdFlower (vec3 p0) {
-	float bloom = mix(-1.,1., sequenceSin(FlowerStart, FlowerEnd));
+	float bloom = mix(-1.,1., sin(sequence(FlowerStart, FlowerEnd)*TAU/4.));
 
 	//p0 += normalize(p0)*hash2(p0.xz)*sequence(EndStart-.9, EndEnd)*30.;
 	float noise2 = fbm(p0*2., .0);
 	//p0.y += 3. * noise2 * sequence(FinalEnd, EndEnd-1.)*(length(p0.xz)+1.);
-	p0.y -= currentHeight()-.5;
+	p0.y -= currentHeight - .5;
 	vec3 p = p0;
 	p.xz *= rot(sin(p.y*5.+Beat)*.5);
 	amod(p.xz, 8.);
@@ -275,7 +258,7 @@ _M sdFlower (vec3 p0) {
 	p.x -= .2+.1*sin((p.y-StemMaxHeight-Beat/4.)*TAU);
 	//p.x -= .8*(sin(-p.y)*.5+.5);
 	//p.y += -camHeight+1.-height;
-	_M m = _M(sdCylinderCapped(p, .02*bloom, 0.5, height), .001, hsv(hash + Beat / 16., .6, 1.));
+	_M m = _M(sdCylinderCapped(p, .02*bloom, 0.5, height), .001, hsv(hash + Beat / 16., .6));
 	p.y -= height;
 	m = smin(m, _M(sdSphere(p, .1*bloom), .001, vec3(1)), .1);
 
@@ -293,7 +276,7 @@ _M sdFlower (vec3 p0) {
 		p.x -= 1.3*bloom;
 		m = smin(m,
 			_M(sdCylinder(p, bloom, .01), .001,
-				mix(vec3(1), hsv(hash - hash1(i) + Beat / 16., 1., 1.), stepIndex/Steps)), 0.2);
+				mix(vec3(1), hsv(hash - hash1(i) + Beat / 16., 1.), stepIndex/Steps)), 0.2);
 	}
 	return m;
 }
@@ -313,6 +296,8 @@ _M map (vec3 p) {
 	p.xz *= rot(Beat * .05);
 
 	p.y += (fbm(p.xzz*4., .6)-.5+Beat-DissolutionStart)*sequence(DissolutionStart, DissolutionEnd);
+
+	currentHeight = min(StemMaxHeight, StemGrowFactor * (Beat - StemStart));
 
 	scene = smin(scene, sdGround(p), .1);
 	scene = smin(scene, sdRoots(p), .1);

@@ -5,9 +5,10 @@ distFile: flower/flower.exe
 #   height: 1080
 globals:
   float:
+  - currentHeight
   - hash
   - stepIndex
-  - TAU = 6.28
+  - TAU = 6.283
 shaderFile: shader.stoy
 uniforms:
   - Beat
