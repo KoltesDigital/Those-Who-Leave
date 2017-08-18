@@ -40,26 +40,27 @@ uniform vec3 StarColor; //! color[1, 1, 1]
 //! <group name="Raymarching"/>
 uniform float Steps; //! slider[5, 10, 50]
 
-//! <group name="Shot Camera"/>
+//! <group name="Shot"/>
 uniform bool SynthclipseCamera; //! checkbox[false]
-
 uniform float StartEndRatio; //! slider[0, 0.5, 1]
-uniform vec3 StartCameraAngles; //! rotation[0, 0, 0]
-#define StartCameraAnglesX StartCameraAngles.x
-#define StartCameraAnglesY StartCameraAngles.y
-#define StartCameraAnglesZ StartCameraAngles.z
-uniform vec3 StartCameraPosition; //! slider[(-10, -10, -10), (0, 0, 0), (10, 10, 10)]
-#define StartCameraPositionX StartCameraPosition.x
-#define StartCameraPositionY StartCameraPosition.y
-#define StartCameraPositionZ StartCameraPosition.z
-uniform vec3 EndCameraAngles; //! rotation[0, 0, 0]
-#define EndCameraAnglesX EndCameraAngles.x
-#define EndCameraAnglesY EndCameraAngles.y
-#define EndCameraAnglesZ EndCameraAngles.z
-uniform vec3 EndCameraPosition; //! slider[(-10, -10, -10), (0, 0, 0), (10, 10, 10)]
-#define EndCameraPositionX EndCameraPosition.x
-#define EndCameraPositionY EndCameraPosition.y
-#define EndCameraPositionZ EndCameraPosition.z
+uniform float StartCameraPositionX; //! slider[-10, 0, 10]
+uniform float StartCameraPositionY; //! slider[-10, 0, 30]
+uniform float StartCameraPositionZ; //! slider[-10, 0, 10]
+uniform float StartCameraAnglesX; //! slider[-8, 0, 8]
+uniform float StartCameraAnglesY; //! slider[-8, 0, 8]
+uniform float StartCameraAnglesZ; //! slider[-8, 0, 8]
+uniform float EndCameraPositionX; //! slider[-10, 0, 10]
+uniform float EndCameraPositionY; //! slider[-10, 0, 30]
+uniform float EndCameraPositionZ; //! slider[-10, 0, 10]
+uniform float EndCameraAnglesX; //! slider[-8, 0, 8]
+uniform float EndCameraAnglesY; //! slider[-8, 0, 8]
+uniform float EndCameraAnglesZ; //! slider[-8, 0, 8]
+uniform float StartSeedPositionX; //! slider[-10, 0, 10]
+uniform float StartSeedPositionY; //! slider[-10, 0, 30]
+uniform float StartSeedPositionZ; //! slider[-10, 0, 10]
+uniform float EndSeedPositionX; //! slider[-10, 0, 10]
+uniform float EndSeedPositionY; //! slider[-10, 0, 30]
+uniform float EndSeedPositionZ; //! slider[-10, 0, 10]
 
 //! <group name="Timing"/>
 uniform float FadeInStart; //! slider[0, 0.1, 300]
@@ -70,7 +71,7 @@ uniform float StemStart; //! slider[0, 7.2, 300]
 uniform float StemEnd; //! slider[0, 87.2, 300]
 uniform float FlowerStart; //! slider[0, 70, 300]
 uniform float FlowerEnd; //! slider[0, 100, 300]
-uniform float FinalStart; //! slider[0, 102, 300]
-uniform float FinalEnd; //! slider[0, 118, 300]
+uniform float DissolutionStart; //! slider[0, 102, 300]
+uniform float DissolutionEnd; //! slider[0, 118, 300]
 uniform float FadeOutStart; //! slider[0, 120, 300]
 uniform float FadeOutEnd; //! slider[0, 124, 300]

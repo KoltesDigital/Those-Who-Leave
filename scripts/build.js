@@ -239,6 +239,8 @@ Promise.all([
 		'/ENTRY:entry',
 		'/PRIORITY:NORMAL',
 		'/COMPMODE:FAST',
+		'/RANGE:opengl32',
+		// '/TRUNCATEFLOATS:16',
 		'/UNSAFEIMPORT',
 		'/REPORT:' + join(buildDirectory, 'stats.html'),
 		'/OUT:' + join(distDirectory, config.distFile),

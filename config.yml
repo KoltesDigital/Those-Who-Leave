@@ -16,12 +16,18 @@ uniforms:
   - EndCameraPositionX
   - EndCameraPositionY
   - EndCameraPositionZ
+  - EndSeedPositionX
+  - EndSeedPositionY
+  - EndSeedPositionZ
   - StartCameraAnglesX
   - StartCameraAnglesY
   - StartCameraAnglesZ
   - StartCameraPositionX
   - StartCameraPositionY
   - StartCameraPositionZ
+  - StartSeedPositionX
+  - StartSeedPositionY
+  - StartSeedPositionZ
   - StartEndRatio
   - synth_Height
   - synth_Width

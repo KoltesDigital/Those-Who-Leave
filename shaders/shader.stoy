@@ -160,17 +160,19 @@ _M sdGround (vec3 p) {
 }
 
 _M sdSeed (vec3 p) {
-	//p.y += mix(-4., 0., sequenceSin(SeedStart, SeedEnd+.1));
-	//p.y += mix(0., 0.01, sequence(SeedEnd+.1, SeedEnd+.3));
+	p.x -= mix(StartSeedPositionX, EndSeedPositionX, StartEndRatio);
+	p.y -= max(mix(StartSeedPositionY, EndSeedPositionY, StartEndRatio), 0.);
+	p.z -= mix(StartSeedPositionZ, EndSeedPositionZ, StartEndRatio);
+
 	p.z += sin(p.x*25.+sin(p.z*20.))*sin(p.y*10.)*.02;
-	p.xy *= rot(TAU/8.);
-	p.xz *= rot(TAU/8.);
+	p.xy *= rot(Beat);
+	p.xz *= rot(Beat);
 	p.xy /= .6;
 	float radius = .5;
 	vec3 q = p;
 	q.xy *= rot(Beat);
 	q.yz *= rot(Beat);
-	return _M(mix(sdIso(p, radius), sdSphere(p, radius), .6), .01, hsv(noiseIQ(q + Beat / 4.), 1., 1.));
+	return _M(mix(sdIso(p, radius), sdSphere(p, radius), .6), .01, hsv(noiseIQ(q + Beat / 4.) + stepIndex/Steps, 1., 1.));
 }
 
 
@@ -219,11 +221,6 @@ float sdLeaf (vec3 p, float radius, float ratio) {
 	p.y -= sin(abs(2.*p.z/radius))*radius*.2;
 	p.x += ( sin(abs(p.z/radius))*.5 - ratio * 2.) * radius;
 
-	//float noise2 = fbm(p.xzz*4., .6);
-	//float noisy = (noise2*2.-1.)*.5;
-	//noisy += noise2*final * noise2*end;
-	//p.y += noisy;
-
 	float leaf = sdCylinder(p, ratio*radius, .05 * radius);
 
 	// stem
@@ -270,7 +267,7 @@ _M sdFlower (vec3 p0) {
 	//p0 += normalize(p0)*hash2(p0.xz)*sequence(EndStart-.9, EndEnd)*30.;
 	float noise2 = fbm(p0*2., .0);
 	//p0.y += 3. * noise2 * sequence(FinalEnd, EndEnd-1.)*(length(p0.xz)+1.);
-	p0.y -= currentHeight();
+	p0.y -= currentHeight()-.5;
 	vec3 p = p0;
 	p.xz *= rot(sin(p.y*5.+Beat)*.5);
 	amod(p.xz, 8.);
@@ -278,7 +275,7 @@ _M sdFlower (vec3 p0) {
 	p.x -= .2+.1*sin((p.y-StemMaxHeight-Beat/4.)*TAU);
 	//p.x -= .8*(sin(-p.y)*.5+.5);
 	//p.y += -camHeight+1.-height;
-	_M m = _M(max(sdCylinder(p, .02*bloom, height), -p0.y), .001, hsv(hash + Beat / 16., .6, 1.));
+	_M m = _M(sdCylinderCapped(p, .02*bloom, 0.5, height), .001, hsv(hash + Beat / 16., .6, 1.));
 	p.y -= height;
 	m = smin(m, _M(sdSphere(p, .1*bloom), .001, vec3(1)), .1);
 
@@ -310,13 +307,18 @@ _M sdCloud (vec3 p) {
 }
 
 _M map (vec3 p) {
-	_M scene = sdGround(p);
+	_M scene = sdCloud(p);
+
 	scene = smin(scene, sdSeed(p), .1);
+	p.xz *= rot(Beat * .05);
+
+	p.y += (fbm(p.xzz*4., .6)-.5+Beat-DissolutionStart)*sequence(DissolutionStart, DissolutionEnd);
+
+	scene = smin(scene, sdGround(p), .1);
 	scene = smin(scene, sdRoots(p), .1);
 	scene = smin(scene, sdMainStem(p), .1);
 	scene = smin(scene, sdLeafs(p), .1);
 	scene = smin(scene, sdFlower(p), .1);
-	scene = smin(scene, sdCloud(p), .1);
 	return scene;
 }
 
@@ -332,21 +334,16 @@ vec3 getNormal (vec3 p) {
 void main() {
 	vec2 uv = (gl_FragCoord.xy-.5*synth_Resolution)/synth_Resolution.y;
 
-	vec3 angles = mix(
-		vec3(StartCameraAnglesX, StartCameraAnglesY, StartCameraAnglesZ),
-		vec3(EndCameraAnglesX, EndCameraAnglesY, EndCameraAnglesZ),
-		StartEndRatio
-	),
-	ray = normalize(vec3(uv,1)),
+	vec3 ray = normalize(vec3(uv,1)),
 	pos = mix(
 		vec3(StartCameraPositionX, StartCameraPositionY, StartCameraPositionZ),
 		vec3(EndCameraPositionX, EndCameraPositionY, EndCameraPositionZ),
 		StartEndRatio
 	),
 	color = ray * 0.;
-	ray.xy *= rot(angles.z);
-	ray.yz *= rot(angles.x);
-	ray.xz *= rot(angles.y);
+	ray.xy *= rot(mix(StartCameraAnglesZ, EndCameraAnglesZ, StartEndRatio));
+	ray.yz *= rot(mix(StartCameraAnglesX, EndCameraAnglesX, StartEndRatio));
+	ray.xz *= rot(mix(StartCameraAnglesY, EndCameraAnglesY, StartEndRatio));
 
 #ifdef SYNTHCLIPSE_ONLY
 	if (SynthclipseCamera) {
