@@ -27,10 +27,17 @@ struct Shot
 
 static Shot shots[] = {
 	{
-		208.f,
+		80.f,
 		{ 0.f, 5.f, -5.f },
 		{ 0.5f, 0.f, 0.f },
 		{ 0.f, 5.f, -5.f },
+		{ 0.5f, 0.f, 0.f },
+	},
+	{
+		208.f,
+		{ 0.f, 5.f, -5.f },
+		{ 0.5f, 0.f, 0.f },
+		{ 0.f, 25.f, -5.f },
 		{ 0.5f, 0.f, 0.f },
 	},
 };
@@ -51,6 +58,7 @@ void entry()
 	HDC hdc = GetDC(hwnd);
 	SetPixelFormat(hdc, ChoosePixelFormat(hdc, &pfd), &pfd);
 	wglMakeCurrent(hdc, wglCreateContext(hdc));
+	ShowCursor(FALSE);
 
 	CreateThread(0, 0, (LPTHREAD_START_ROUTINE)_4klang_render, soundBuffer, 0, 0);
 	waveOutOpen(&waveOut, WAVE_MAPPER, &waveFormat, NULL, 0, CALLBACK_NULL);
@@ -79,6 +87,7 @@ void entry()
 		PeekMessage(NULL, NULL, 0, 0, PM_REMOVE);
 
 		float beat = (BPM / 60.f) * getTime();
+		beat *= 16;
 
 		if (beat >= currentShot->endBeat)
 		{

@@ -81,15 +81,30 @@ void amod(inout vec2 p, float count) {
 }
 
 // volume distance sdf functions
-float sdCone(vec3 p, vec2 c) { return dot(c, vec2(length(p.xy), p.z)); }
-float sdSphere (vec3 p, float r) { return length(p)-r; }
-float sdCylinder (vec3 p, float r, float h) { return max(abs(p.y)-h,length(p.xz)-r); }
+float sdCone(vec3 p, vec2 c) {
+	return dot(c, vec2(length(p.xy), p.z));
+}
+float sdSphere (vec3 p, float r) {
+	return length(p)-r;
+}
+float sdCylinder (vec3 p, float r, float h) {
+	return max(abs(p.y)-h, length(p.xz)-r);
+}
+float sdCylinderCapped (vec3 p, float r, float hmin, float hmax) {
+	return max(max(-p.y+hmin, p.y-hmax), length(p.xz)-r);
+}
 float sdCylinderBox (vec3 p, float r, float h) {
 	vec2 d = abs(p.xz) - r;
 	return max(abs(p.y)-h, min(max(d.x,d.y),0.0) + length(max(d,0.0))); }
-float sdPlane (float p, float r) { return abs(p)-r; }
-float sdBox (vec3 p, vec3 r) { return length(max(abs(p)-r,0.)); }
-float sdIso (vec3 p, float r) { return dot(p, normalize(sign(p)))-r; }
+float sdPlane (float p, float r) {
+	return abs(p)-r;
+}
+float sdBox (vec3 p, vec3 r) {
+	return length(max(abs(p)-r,0.));
+}
+float sdIso (vec3 p, float r) {
+	return dot(p, normalize(sign(p)))-r;
+}
 float sdTorus( vec3 p, vec2 s ) {
   vec2 q = vec2(length(p.xz)-s.x,p.y);
   return length(q)-s.y;
@@ -127,11 +142,7 @@ float currentHeight () {
 }
 
 vec3 stemDisplacement (vec3 p) {
-	return vec3(cos(p.y),0.,sin(p.y))*.5;
-}
-
-float fadeHeight (vec3 p) {
-	return sin(TAU/2.*clamp(p.y/StemMaxHeight,0.,1.));
+	return vec3(cos(p.y),0.,sin(p.y)) * .5 * max(sin(TAU/2.*p.y/StemMaxHeight), 0.);
 }
 
 float fadeCurrentHeight (vec3 p) {
@@ -172,23 +183,22 @@ _M sdRoots (vec3 p) {
 	float d = length(p.xz);
 	float len = 6. * sequence(RootStart+range*hash, RootEnd+range*hash);
 	float fade = 1. - min(1., exp(RootFadeDamping * (d - len)));
-	float rootDown = .8 * pow(d/5., 2.);
+	float rootDown = .8 * pow(min(d/5., 1.), 2.);
 	float radius = (.1 + 0.02*sin(TAU * (Beat*.5 + d*.5 + hash))) * fade;
 	p.xz *= rot(sin((3.+4.*hash)*(d+hash))*.1);
-	p.y += RootAmplitude * cos(d * RootPulsation + hash) * min(1., exp(RootDamping * -d))
+	p.y += RootAmplitude * cos(d * RootPulsation + hash) * clamp(exp(RootDamping * -d), 0., 1.)
 			+ rootDown + smoothstep(4.5, 8., d) * RootFall;
 
-	p.x -= len;
+	//p.x -= len;
 	p.yz *= rot(p.y * RootSubHelixStep);
 	amod(p.yz, subCount);
 	p.y -= RootSubRadius;
-	return _M(max(length(p.yz) - radius, max(d-len, -d))*.8, .001, mix(RootColor0, RootColor1, stepIndex/Steps));
+	return _M(sdCylinderCapped(p.yxz, radius, 0., len), .001, mix(RootColor0, RootColor1, stepIndex/Steps));
 }
 
 _M sdMainStem (vec3 p) {
 	float height = currentHeight();
-	float fade = fadeHeight(p);
-	p += stemDisplacement(p)*fade;
+	p += stemDisplacement(p);
 	p.xz *= rot(Beat-p.y*2.);
 	float radius = mix(-1.,StemRadius, sequence(StemStart,StemStart+0.01));
 	radius *= .4+.5*(1.-fadeCurrentHeight(p));
@@ -233,21 +243,19 @@ _M sdLeafs(vec3 p) {
 	float radius = 1.5,
 		ratio = 1. - min(1., exp(-.2 * (Beat - StemStart - 8. * 9.)));
 
-	float fade = fadeHeight(p);
-	p += stemDisplacement(p)*fade;
+	p += stemDisplacement(p);
 
 	p.y -= 9. * LeafInterval;
 	amod(p.xz, 4.);
 	float shape = sdLeaf(p, radius, ratio);
 
 	for (float index = 1.; index < 9.; ++index) {
-		float fade = fadeHeight(pOrig);
-		p = pOrig + stemDisplacement(pOrig)*fade;
+		p = pOrig + stemDisplacement(pOrig);
 
 		p.y -= index * LeafInterval;
 
 		radius = .5 + .05 * index;
-		ratio = 1. - min(1., exp(-.2 * (Beat - StemStart - 8. * index)));
+		ratio = 1. - min(2., exp(-.2 * (Beat - StemStart - 8. * index)));
 
 		p.xz *= rot(3. - index * LeafInterval);
 		shape = min(shape, sdLeaf(p, radius, ratio));
@@ -257,17 +265,26 @@ _M sdLeafs(vec3 p) {
 }
 
 _M sdFlower (vec3 p0) {
+	float bloom = mix(-1.,1., sequenceSin(FlowerStart, FlowerEnd));
+
 	//p0 += normalize(p0)*hash2(p0.xz)*sequence(EndStart-.9, EndEnd)*30.;
 	float noise2 = fbm(p0*2., .0);
 	//p0.y += 3. * noise2 * sequence(FinalEnd, EndEnd-1.)*(length(p0.xz)+1.);
 	p0.y -= currentHeight();
 	vec3 p = p0;
+	p.xz *= rot(sin(p.y*5.+Beat)*.5);
+	amod(p.xz, 8.);
+	float height = 2.*bloom;
+	p.x -= .2+.1*sin((p.y-StemMaxHeight-Beat/4.)*TAU);
+	//p.x -= .8*(sin(-p.y)*.5+.5);
+	//p.y += -camHeight+1.-height;
+	_M m = _M(max(sdCylinder(p, .02*bloom, height), -p0.y), .001, hsv(hash + Beat / 16., .6, 1.));
+	p.y -= height;
+	m = smin(m, _M(sdSphere(p, .1*bloom), .001, vec3(1)), .1);
+
+	p = p0;
 	float count = 3.;
 	float repeat = 5.;
-	float bloom = mix(-1.,1., sequenceSin(FlowerStart, FlowerEnd));
-	float radius = 1.*bloom;
-	_M m;
-	m.d = 1e5;
 	for (float i = 0.; i < count; ++i) {
 		p = p0;
 		//p.y += -camHeight+1.;
@@ -278,18 +295,9 @@ _M sdFlower (vec3 p0) {
 		p.xy *= rot(-TAU/6. +p.x*.2+.1*sin((Beat + i) * TAU / 4.));
 		p.x -= 1.3*bloom;
 		m = smin(m,
-			_M(sdCylinder(p, radius, .01), .001,
+			_M(sdCylinder(p, bloom, .01), .001,
 				mix(vec3(1), hsv(hash - hash1(i) + Beat / 16., 1., 1.), stepIndex/Steps)), 0.2);
 	}
-	p = p0;
-	p.xz *= rot(sin(p.y*5.+Beat)*.5);
-	amod(p.xz, 8.);
-	float height = 2.*bloom;
-	p.x -= .2+.1*sin((p.y-StemMaxHeight-Beat/4.)*TAU);
-	//p.x -= .8*(sin(-p.y)*.5+.5);
-	//p.y += -camHeight+1.-height;
-	m = smin(m, _M(max(sdCylinder(p, .02, height), -p0.y), .001, hsv(hash + Beat / 16., .6, 1.)), .1);
-	m = smin(m, _M(sdSphere(p-vec3(0,height,0), .1*bloom), .001, vec3(1)), .1);
 	return m;
 }
 
@@ -322,7 +330,7 @@ vec3 getNormal (vec3 p) {
 }
 
 void main() {
-	vec2 uv = (gl_FragCoord.xy-.5*synth_Resolution.xy)/synth_Resolution.y;
+	vec2 uv = (gl_FragCoord.xy-.5*synth_Resolution)/synth_Resolution.y;
 
 	vec3 angles = mix(
 		vec3(StartCameraAnglesX, StartCameraAnglesY, StartCameraAnglesZ),
