@@ -135,16 +135,18 @@ void entry()
 {
 	unsigned int i;
 
-	DWORD width = GetSystemMetrics(SM_CXSCREEN);
-	DWORD height = GetSystemMetrics(SM_CYSCREEN);
+#ifndef FORCE_RESOLUTION
+	auto width = GetSystemMetrics(SM_CXSCREEN);
+	auto height = GetSystemMetrics(SM_CYSCREEN);
 
 #ifdef HALF_SCREEN
 	width /= 4;
 	height /= 4;
 #endif
+#endif
 
-	HWND hwnd = CreateWindow("static", NULL, WS_POPUP | WS_VISIBLE, 0, 0, width, height, NULL, NULL, NULL, 0);
-	HDC hdc = GetDC(hwnd);
+	auto hwnd = CreateWindow("static", NULL, WS_POPUP | WS_VISIBLE, 0, 0, width, height, NULL, NULL, NULL, 0);
+	auto hdc = GetDC(hwnd);
 	SetPixelFormat(hdc, ChoosePixelFormat(hdc, &pfd), &pfd);
 	wglMakeCurrent(hdc, wglCreateContext(hdc));
 	ShowCursor(FALSE);
@@ -205,8 +207,11 @@ void entry()
 		uniformStartSeedPositionY = currentShot->startSeedPosition[1];
 		uniformStartSeedPositionZ = currentShot->startSeedPosition[2];
 		uniformStartEndRatio = (beat - startBeat) / (currentShot->endBeat - startBeat);
-		uniformSynthHeight = (float)height;
-		uniformSynthWidth = (float)width;
+
+#ifndef FORCE_RESOLUTION
+		uniformResolutionHeight = (float)height;
+		uniformResolutionWidth = (float)width;
+#endif
 
 		// hack - assume that the uniforms u[] will always be linked to locations [0-n]
 		// given that they are the only uniforms in the shader, it is likely to work on all drivers

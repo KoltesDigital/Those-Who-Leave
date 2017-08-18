@@ -116,7 +116,21 @@ Promise.all([
 					.replace(/#ifndef\s+SYNTHCLIPSE_ONLY([\s\S]*?)(?:#else[\s\S]*?)?#endif/g, '$1')
 					.replace(/\bconst\b/g, '');
 
-				const globals = config.globals;
+				function addGlobal(type, value) {
+					if (!config.globals[type])
+						config.globals[type] = [];
+					config.globals[type].push(value);
+				}
+
+				if (config.forceResolution) {
+					addGlobal('vec2', 'synth_Resolution = vec2(' + config.forceResolution.width + ', ' + config.forceResolution.height + ')');
+				} else {
+					const uniformWidthName = 'resolutionWidth',
+						uniformHeightName = 'resolutionHeight';
+					addGlobal('vec2', 'synth_Resolution = vec2(' + uniformWidthName + ', ' + uniformHeightName + ')');
+					config.uniforms.push(uniformWidthName, uniformHeightName);
+				}
+
 				Object.keys(constantsMap).forEach(constantName => {
 					const constantEntry = constantsMap[constantName];
 
@@ -127,9 +141,7 @@ Promise.all([
 					}
 
 					if (occurences > 1) {
-						if (!globals[constantEntry.type])
-							globals[constantEntry.type] = [];
-						globals[constantEntry.type].push(constantName + ' = ' + constantEntry.value);
+						addGlobal(constantEntry.type, constantName + ' = ' + constantEntry.value);
 					} else if (occurences === 1) {
 						shader = shader.replace(re, constantEntry.value);
 					}
@@ -141,8 +153,8 @@ Promise.all([
 					'//! FRAGMENT',
 					'uniform float _[' + config.uniforms.length + '];',
 				]
-					.concat(Object.keys(globals).map(type => {
-						return type + ' ' + globals[type].join(', ') + ';';
+					.concat(Object.keys(config.globals).map(type => {
+						return type + ' ' + config.globals[type].join(', ') + ';';
 					}))
 					.concat(shaderLines)
 					.join('\n');
@@ -192,6 +204,14 @@ Promise.all([
 				.replace(/_+/g, '');
 				headerContents.push('#define uniform' + name + ' uniforms[' + index + ']');
 			});
+
+			if (config.forceResolution) {
+				headerContents.push(
+					'#define FORCE_RESOLUTION',
+					'static const constexpr int width = ' + config.forceResolution.width + ';',
+					'static const constexpr int height = ' + config.forceResolution.height + ';'
+				);
+			}
 
 			return writeFile(join(buildDirectory, 'shader.h'), headerContents.join('\n'), (err) => {
 				if (err)

@@ -1,12 +1,13 @@
 constantsPreset: Default
 distFile: flower/flower.exe
+# forceResolution:
+#   width: 1920
+#   height: 1080
 globals:
   float:
   - hash
   - stepIndex
   - TAU = 6.28
-  vec2:
-  - synth_Resolution = vec2(synth_Width, synth_Height)
 shaderFile: shader.stoy
 uniforms:
   - Beat
@@ -29,5 +30,3 @@ uniforms:
   - StartSeedPositionY
   - StartSeedPositionZ
   - StartEndRatio
-  - synth_Height
-  - synth_Width
