@@ -116,11 +116,7 @@ Promise.all([
 					.replace(/#ifndef\s+SYNTHCLIPSE_ONLY([\s\S]*?)(?:#else[\s\S]*?)?#endif/g, '$1')
 					.replace(/\bconst\b/g, '');
 
-				const constantsByTypes = {
-					vec2: [
-						'synth_Resolution = vec2(synth_Width, synth_Height)',
-					],
-				};
+				const globals = config.globals;
 				Object.keys(constantsMap).forEach(constantName => {
 					const constantEntry = constantsMap[constantName];
 
@@ -131,9 +127,9 @@ Promise.all([
 					}
 
 					if (occurences > 1) {
-						if (!constantsByTypes[constantEntry.type])
-							constantsByTypes[constantEntry.type] = [];
-						constantsByTypes[constantEntry.type].push(constantName + ' = ' + constantEntry.value);
+						if (!globals[constantEntry.type])
+							globals[constantEntry.type] = [];
+						globals[constantEntry.type].push(constantName + ' = ' + constantEntry.value);
 					} else if (occurences === 1) {
 						shader = shader.replace(re, constantEntry.value);
 					}
@@ -145,8 +141,8 @@ Promise.all([
 					'//! FRAGMENT',
 					'uniform float _[' + config.uniforms.length + '];',
 				]
-					.concat(Object.keys(constantsByTypes).map(type => {
-						return type + ' ' + constantsByTypes[type].join(', ') + ';';
+					.concat(Object.keys(globals).map(type => {
+						return type + ' ' + globals[type].join(', ') + ';';
 					}))
 					.concat(shaderLines)
 					.join('\n');
