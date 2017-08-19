@@ -151,7 +151,7 @@ Z sdSeed (vec3 p) {
 	vec3 q = p;
 	q.xy *= rot(Beat);
 	q.yz *= rot(Beat);
-	return Z(mix(sdIso(p, radius), sdSphere(p, radius), .6), .01, hsv(noiseIQ(q + Beat / 4.) + stepIndex/Steps, 1.));
+	return Z(mix(sdIso(p, radius), sdSphere(p, radius), .6), .001, hsv(noiseIQ(q + Beat / 4.) + stepIndex/Steps, 1.));
 }
 
 

@@ -62,7 +62,7 @@ static Shot shots[] = {
 		{ 0.0f, 3.f, -3.f },
 		{ 0.8f, 0.f, 0.f },
 		{ 0.f, 1.f, 0.f },
-		{ 0.f, -1.f, 0.f },
+		{ 0.f, -2.f, 0.f },
 	},
 	{
 		64,
@@ -133,8 +133,6 @@ static Shot shots[] = {
 
 void entry()
 {
-	unsigned int i;
-
 #ifndef FORCE_RESOLUTION
 	auto width = GetSystemMetrics(SM_CXSCREEN);
 	auto height = GetSystemMetrics(SM_CYSCREEN);
@@ -156,7 +154,7 @@ void entry()
 	waveOutPrepareHeader(waveOut, &waveHDR, sizeof(waveHDR));
 	waveOutWrite(waveOut, &waveHDR, sizeof(waveHDR));
 
-	for (i = 0; i < GL_EXT_FUNCTION_COUNT; ++i)
+	for (auto i = 0; i < GL_EXT_FUNCTION_COUNT; ++i)
 		glExtFunctions[i] = wglGetProcAddress(glExtFunctionNames[i]);
 
 	GLint program = glCreateProgram();
