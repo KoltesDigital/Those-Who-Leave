@@ -281,7 +281,7 @@ Z sdFlower (vec3 p0) {
 
 Z sdCloud (vec3 p) {
 	p.y -= 40.-20.*sin(TAU/8.*clamp(length(p.xz)/200.,0.,1.));
-	float shape = abs(p.y+5.*fbm(p*.2, .05))-5.*(.2+.5*sin(p.x*.07))*(.2+.5*sin(p.z*.1+Beat));
+	float shape = abs(p.y+5.*fbm(p*.2, .05))-5.*(noise(p*.1 + (Beat - p.x*.05) * .5)-.4);
 	//shape = sdSphere(p, 1.+fbm(p, .1));
 	shape = mix(1.,shape, clamp(length(p.xz),0.,1.));
 	return Z(shape, 1., mix(CloudColor0, CloudColor1, stepIndex/Steps));
