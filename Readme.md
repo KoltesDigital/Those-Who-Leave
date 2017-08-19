@@ -1,6 +1,6 @@
-# Flower
+# Those Who Leave
 
-> 4k for evoke 2017.
+> PC 4k intro, released at evoke 2017.
 
 Koltes: direction, optimization, toolchain.
 
