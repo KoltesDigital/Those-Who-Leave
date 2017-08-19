@@ -209,7 +209,8 @@ Promise.all([
 					'#define CAPTURE_FRAMES',
 					'static const constexpr int width = ' + config.capture.width + ';',
 					'static const constexpr int height = ' + config.capture.height + ';',
-					'static const constexpr float fps = ' + config.capture.fps + ';'
+					'static const constexpr float captureFPS = ' + config.capture.fps + ';',
+					'static const constexpr float captureDuration = ' + config.capture.duration + ';'
 				);
 			} else if (config.forceResolution) {
 				headerContents.push(

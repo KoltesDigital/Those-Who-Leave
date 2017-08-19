@@ -2,8 +2,6 @@
 
 #ifdef CAPTURE_FRAMES
 
-#include <cstdlib>
-
 static int frameNumber;
 static HANDLE frameFile;
 static DWORD frameBytesWritten;
@@ -31,7 +29,7 @@ static void startTime()
 
 static float getTime()
 {
-	return frameNumber / fps;
+	return frameNumber / captureFPS;
 }
 
 #define capture() \
@@ -43,7 +41,7 @@ static float getTime()
 		CloseHandle(frameFile); \
 	} \
 	frameNumber++; \
-	if (frameNumber > (MAX_SAMPLES * fps) / SAMPLE_RATE) \
+	if (getTime() >= captureDuration) \
 		break
 
 #else
