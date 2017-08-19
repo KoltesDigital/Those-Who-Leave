@@ -305,7 +305,11 @@ Z map (vec3 p) {
 }
 
 void main() {
-	vec2 uv = (gl_FragCoord.xy-.5*synth_Resolution)/synth_Resolution.y;
+	vec2 uv = gl_FragCoord.xy/synth_Resolution,
+			v = uv * (1. - uv);
+
+    uv -= .5;
+    uv.x *= synth_Resolution.x / synth_Resolution.y;
 
 	vec3 ray = normalize(vec3(uv,1)),
 	pos = mix(
@@ -335,14 +339,17 @@ void main() {
 
 	ray.xy *= rot(Beat*.01);
 	ray.xz *= rot(.5);
-	gl_FragColor = vec4(mix(
+	gl_FragColor = vec4(
+		sqrt(mix(
 			mix(
 				mix(SkyColor0, SkyColor1, noise(ray*3.)*noise(ray*.2))
 			, StarColor, smoothstep(.94, 1., noise(ray*3e2))),
-			color, step(1e-5, color))
+			color, step(1e-5, color)
+		))
 		 * Exposure
 		 * sequence(FadeInStart, FadeInEnd)
 	 	 * sequence(FadeOutEnd, FadeOutStart)
+		 * pow(v.x * v.y * 15.0, 0.25)
 	, 1.);
 }
 
