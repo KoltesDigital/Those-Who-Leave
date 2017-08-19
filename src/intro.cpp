@@ -110,8 +110,10 @@ static Shot shots[] = {
 		184,
 		{ 0.f, -5.f, -15.f },
 		{ -0.5f, 0.f, -0.5f },
-		{ 0.f, 30.f, -5.f },
+		{ 0.f, 28.f, -5.f },
 		{ 1.f, 0.f, 0.3f },
+		{ 0.f, 5.f, 0.f },
+		{ 0.f, 15.f, 0.f },
 	},
 	{
 		212,
@@ -169,7 +171,7 @@ void entry()
 		PeekMessage(NULL, NULL, 0, 0, PM_REMOVE);
 
 		float beat = (BPM / 60.f) * getTime();
-		//beat += 32;
+		// beat += 160;
 		//beat *= 16;
 
 		if (beat >= currentShot->endBeat)

@@ -149,6 +149,7 @@ Z sdGround (vec3 p) {
 }
 
 Z sdSeed (vec3 p) {
+	p += stemDisplacement(p);
 	p.x -= mix(StartSeedPositionX, EndSeedPositionX, StartEndRatio);
 	p.y -= max(mix(StartSeedPositionY, EndSeedPositionY, StartEndRatio), 0.);
 	p.z -= mix(StartSeedPositionZ, EndSeedPositionZ, StartEndRatio);
@@ -289,12 +290,12 @@ Z sdCloud (vec3 p) {
 Z map (vec3 p) {
 	Z scene = sdCloud(p);
 
-	scene = smin(scene, sdSeed(p), .1);
 	p.xz *= rot(Beat * .05);
+	currentHeight = min(StemMaxHeight, StemGrowFactor * (Beat - StemStart));
+
+	scene = smin(scene, sdSeed(p), .1);
 
 	p.y += (fbm(p.xzz*4., .6)-.5+Beat-DissolutionStart)*sequence(DissolutionStart, DissolutionEnd);
-
-	currentHeight = min(StemMaxHeight, StemGrowFactor * (Beat - StemStart));
 
 	scene = smin(scene, sdGround(p), .1);
 	scene = smin(scene, sdRoots(p), .1);
