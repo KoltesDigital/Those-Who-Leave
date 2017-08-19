@@ -1,5 +1,6 @@
 'use strict';
 
+const { audioDirectory, buildDirectory, distDirectory, shadersDirectory, srcDirectory } = require('./directories');
 const { readFile, readFileSync, stat, writeFile } = require('fs');
 const { safeLoad } = require('js-yaml');
 const makeDir = require('make-dir');
@@ -9,11 +10,6 @@ const rimrafPromise = require('rimraf-promise');
 const spawnPromise = require('./spawn-promise');
 
 const config = safeLoad(readFileSync('config.yml'));
-const audioDirectory = 'audio';
-const buildDirectory = 'build';
-const distDirectory = 'dist';
-const shadersDirectory = 'shaders';
-const srcDirectory = 'src';
 
 function dir(path) {
 	return rimrafPromise(join(path, '*'))
@@ -122,7 +118,9 @@ Promise.all([
 					config.globals[type].push(value);
 				}
 
-				if (config.forceResolution) {
+				if (config.capture) {
+					addGlobal('vec2', 'synth_Resolution = vec2(' + config.capture.width + ', ' + config.capture.height + ')');
+				} else if (config.forceResolution) {
 					addGlobal('vec2', 'synth_Resolution = vec2(' + config.forceResolution.width + ', ' + config.forceResolution.height + ')');
 				} else {
 					const uniformWidthName = 'resolutionWidth',
@@ -183,7 +181,7 @@ Promise.all([
 	]);
 })
 .then(() => {
-	console.log('Generating shader header.');
+	console.log('Generating header.');
 	return new Promise((resolve, reject) => {
 		return readFile(join(buildDirectory, 'shader.min.glsl'), (err, contents) => {
 			if (err)
@@ -205,15 +203,27 @@ Promise.all([
 				headerContents.push('#define uniform' + name + ' uniforms[' + index + ']');
 			});
 
-			if (config.forceResolution) {
+			if (config.capture) {
+				headerContents.push(
+					'#define FORCE_RESOLUTION',
+					'#define CAPTURE_FRAMES',
+					'static const constexpr int width = ' + config.capture.width + ';',
+					'static const constexpr int height = ' + config.capture.height + ';',
+					'static const constexpr float fps = ' + config.capture.fps + ';'
+				);
+			} else if (config.forceResolution) {
 				headerContents.push(
 					'#define FORCE_RESOLUTION',
 					'static const constexpr int width = ' + config.forceResolution.width + ';',
 					'static const constexpr int height = ' + config.forceResolution.height + ';'
 				);
+			} else {
+				headerContents.push(
+					'static int width, height;'
+				);
 			}
 
-			return writeFile(join(buildDirectory, 'shader.h'), headerContents.join('\n'), (err) => {
+			return writeFile(join(buildDirectory, 'generated.hpp'), headerContents.join('\n'), (err) => {
 				if (err)
 					return reject(err);
 				else

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <audio/4klang.h>
-
 static SAMPLE_TYPE soundBuffer[MAX_SAMPLES * 2];
 static HWAVEOUT waveOut;
 

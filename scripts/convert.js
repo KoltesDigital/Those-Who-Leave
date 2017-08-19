@@ -1,22 +1,29 @@
 'use strict';
 
+const { audioDirectory, distDirectory } = require('./directories');
+const { readFileSync } = require('fs');
+const { safeLoad } = require('js-yaml');
+const { dirname, join } = require('path');
 const spawnPromise = require('./spawn-promise');
 
+const config = safeLoad(readFileSync('config.yml'));
+
 spawnPromise('ffmpeg', [
+	'-y',
 	'-f',
 	'image2',
 	'-r',
-	'60',
+	config.capture.fps,
 	'-s',
-	'1920x1080',
+	config.capture.width + 'x' + config.capture.height,
 	'-pix_fmt',
 	'rgb24',
-	'-vcodec',
-	'rawvideo',
+	'-start_number',
+	'0',
 	'-i',
-	'out\\frame%05d.raw',
-	// '-i',
-	// 'audio.wav',
+	join(distDirectory, dirname(config.distFile), 'frame%05d.raw'),
+	'-i',
+	join(audioDirectory, '4klang.mp3'),
 	'-vf',
 	'vflip',
 	'-codec:v',
@@ -37,6 +44,6 @@ spawnPromise('ffmpeg', [
 	'384k',
 	'-movflags',
 	'faststart',
-	'out\\intro.mp4',
+	join(distDirectory, 'intro.mp4'),
 ])
 .catch(console.error);

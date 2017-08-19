@@ -2,6 +2,8 @@
 
 #ifdef CAPTURE_FRAMES
 
+#include <cstdlib>
+
 static int frameNumber;
 static HANDLE frameFile;
 static DWORD frameBytesWritten;
@@ -21,14 +23,16 @@ static char *frameFilename(int n)
 	return name;
 }
 
-#define startTime() \
-	frameNumber = 0; \
-	frameBuffer = (char *)HeapAlloc(GetProcessHeap(), 0, width * height * 3 /* RGB8 */)
+static void startTime()
+{
+	frameNumber = 0;
+	frameBuffer = (char *)HeapAlloc(GetProcessHeap(), 0, width * height * 3 /* RGB8 */);
+}
 
-#define getTime() \
-	(float)frameNumber / 60.0f; \
-	if (time > 120.f) \
-		break
+static float getTime()
+{
+	return frameNumber / fps;
+}
 
 #define capture() \
 	glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, frameBuffer); \
@@ -38,7 +42,9 @@ static char *frameFilename(int n)
 		WriteFile(frameFile, frameBuffer, width * height * 3, &frameBytesWritten, NULL); \
 		CloseHandle(frameFile); \
 	} \
-	frameNumber++
+	frameNumber++; \
+	if (frameNumber > (MAX_SAMPLES * fps) / SAMPLE_RATE) \
+		break
 
 #else
 

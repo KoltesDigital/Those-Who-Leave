@@ -1,3 +1,7 @@
+# capture:
+#   width: 1280
+#   height: 720
+#   fps: 30
 constantsPreset: Default
 distFile: flower/flower.exe
 # forceResolution:
