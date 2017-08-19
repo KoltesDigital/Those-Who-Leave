@@ -1,14 +1,16 @@
 # Those Who Leave
 
-> PC 4k intro, released at evoke 2017.
-
-Koltes: direction, optimization, toolchain.
-
-ponk: modeling.
-
-Unix: music.
+PC 4k intro, released at evoke 2017.
 
 <img src="/Thumbnail.jpg?raw=true" alt="Thumbnail" width="100%"/>
+
+## Credits
+
+[Koltes](https://github.com/KoltesDigital): direction, optimization, toolchain.
+
+[Ponk](https://github.com/leon196): modeling.
+
+[Unix](https://github.com/unixdal): music.
 
 ## Demoscene is a big family
 
