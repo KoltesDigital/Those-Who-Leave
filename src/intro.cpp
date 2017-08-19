@@ -35,11 +35,6 @@ void entry()
 	wglMakeCurrent(hdc, wglCreateContext(hdc));
 	ShowCursor(FALSE);
 
-	CreateThread(0, 0, (LPTHREAD_START_ROUTINE)_4klang_render, soundBuffer, 0, 0);
-	waveOutOpen(&waveOut, WAVE_MAPPER, &waveFormat, NULL, 0, CALLBACK_NULL);
-	waveOutPrepareHeader(waveOut, &waveHDR, sizeof(waveHDR));
-	waveOutWrite(waveOut, &waveHDR, sizeof(waveHDR));
-
 	for (auto i = 0; i < GL_EXT_FUNCTION_COUNT; ++i)
 		glExtFunctions[i] = wglGetProcAddress(glExtFunctionNames[i]);
 
@@ -50,6 +45,11 @@ void entry()
 	glAttachShader(program, fragmentShader);
 	glLinkProgram(program);
 	glUseProgram(program);
+
+	CreateThread(0, 0, (LPTHREAD_START_ROUTINE)_4klang_render, soundBuffer, 0, 0);
+	waveOutOpen(&waveOut, WAVE_MAPPER, &waveFormat, NULL, 0, CALLBACK_NULL);
+	waveOutPrepareHeader(waveOut, &waveHDR, sizeof(waveHDR));
+	waveOutWrite(waveOut, &waveHDR, sizeof(waveHDR));
 
 	startTime();
 
