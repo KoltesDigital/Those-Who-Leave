@@ -8,6 +8,8 @@ ponk: modeling.
 
 Unix: music.
 
+<img src="/Thumbnail.jpg?raw=true" alt="Thumbnail" width="100%"/>
+
 ## Demoscene is a big family
 
 Framework derived from [wsmind](https://github.com/wsmind) and [halcy](https://github.com/halcy/), themselves took from iq...
