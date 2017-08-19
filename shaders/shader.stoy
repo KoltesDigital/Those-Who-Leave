@@ -43,22 +43,32 @@ float hash2(vec2 co) {
 	return fract(sin(dot(co*0.123,vec2(12.9898,78.233))) * 43758.5453);
 }
 
-float noiseIQ( vec3 x ) {
+float hash3(vec3 p) {
+	p  = fract( p*0.3183099+.1 );
+	p *= 17.0;
+	return fract( p.x*p.y*p.z*(p.x+p.y+p.z) );
+}
+
+float noise(vec3 x) {
 	vec3 p = floor(x);
 	vec3 f = fract(x);
-	f       = f*f*(3.0-2.0*f);
-	float n = p.x + p.y*57.0 + 113.0*p.z;
-	return mix(mix(mix( hash1(n+0.0), hash1(n+1.0),f.x),
-	mix( hash1(n+57.0), hash1(n+58.0),f.x),f.y),
-	mix(mix( hash1(n+113.0), hash1(n+114.0),f.x),
-	mix( hash1(n+170.0), hash1(n+171.0),f.x),f.y),f.z);
+	f = f*f*(3.0-2.0*f);
+	vec2 oi = vec2(0,1);
+	return mix(mix(mix( hash3(p),
+						hash3(p+oi.yxx),f.x),
+				mix( hash3(p+oi.xyx),
+						hash3(p+oi.yyx),f.x),f.y),
+			mix(mix( hash3(p+oi.xxy),
+						hash3(p+oi.yxy),f.x),
+				mix( hash3(p+oi.xyy),
+						hash3(p+oi.yyy),f.x),f.y),f.z);
 }
 
 float fbm (vec3 p, float s) {
 	float value = 0.0;
 	float amplitude = 1.;
 	for (int i = 0; i < Octaves; ++i) {
-		value += amplitude * noiseIQ(p);
+		value += amplitude * noise(p);
 		p *= 2.;
 		p.yx *= rot(Beat*s*.5);
 		p.yz *= rot(Beat*s*.3);
@@ -151,7 +161,7 @@ Z sdSeed (vec3 p) {
 	vec3 q = p;
 	q.xy *= rot(Beat);
 	q.yz *= rot(Beat);
-	return Z(mix(sdIso(p, radius), sdSphere(p, radius), .6), .001, hsv(noiseIQ(q + Beat / 4.) + stepIndex/Steps, 1.));
+	return Z(mix(sdIso(p, radius), sdSphere(p, radius), .6), .001, hsv(noise(q + Beat / 4.) + stepIndex/Steps, 1.));
 }
 
 
@@ -323,12 +333,12 @@ void main() {
 	}
 	color /= Steps;
 
-	ray.xy *= rot(Beat*.02);
+	ray.xy *= rot(Beat*.01);
 	ray.xz *= rot(.5);
 	gl_FragColor = vec4(mix(
 			mix(
-				mix(SkyColor0, SkyColor1, noiseIQ(ray*5.)*noiseIQ(ray*.2))
-			, StarColor, smoothstep(.94, 1., noiseIQ(ray*1e2))),
+				mix(SkyColor0, SkyColor1, noise(ray*3.)*noise(ray*.2))
+			, StarColor, smoothstep(.94, 1., noise(ray*3e2))),
 			color, step(1e-5, color))
 		 * Exposure
 		 * sequence(FadeInStart, FadeInEnd)
