@@ -8,7 +8,7 @@ PC 4k intro, released at evoke 2017.
 
 [Koltes](https://github.com/KoltesDigital): direction, optimization, toolchain.
 
-[Ponk](https://github.com/leon196): modeling.
+[Ponk](https://github.com/leon196): art, modeling.
 
 [Unix](https://github.com/unixdal): music.
 
